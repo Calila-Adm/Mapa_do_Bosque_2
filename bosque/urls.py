@@ -5,5 +5,5 @@ app_name = 'bosque'
 
 urlpatterns = [
     path('', views.index, name='operacoes'),
-    path('Instagram/', views.instagram, name='instagram')
+    path('instagram/', views.instagram, name='instagram')
 ]

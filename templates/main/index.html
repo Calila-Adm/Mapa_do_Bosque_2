@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bem-vindo ao Mapa do Bosque</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Botão de Login no canto superior direito */
+        .login-button {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            padding: 12px 30px;
+            background: white;
+            color: #667eea;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 1em;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .login-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .login-button svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Container principal */
+        .hero-container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 100px 20px 60px 20px;
+            text-align: center;
+        }
+
+        .logo-section {
+            animation: fadeInDown 1s ease;
+        }
+
+        .logo-section h1 {
+            color: white;
+            font-size: 4em;
+            margin-bottom: 20px;
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.3);
+            font-weight: 700;
+        }
+
+        .logo-section .subtitle {
+            color: rgba(255, 255, 255, 0.95);
+            font-size: 1.5em;
+            margin-bottom: 50px;
+            font-weight: 300;
+        }
+
+        /* Card de introdução */
+        .intro-card {
+            background: white;
+            border-radius: 25px;
+            padding: 60px;
+            max-width: 900px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: fadeInUp 1s ease 0.3s both;
+            margin-bottom: 40px;
+        }
+
+        .intro-card h2 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .intro-card .intro-text {
+            color: #333;
+            font-size: 1.2em;
+            line-height: 1.8;
+            margin-bottom: 40px;
+            text-align: left;
+        }
+
+        .intro-text p {
+            margin-bottom: 20px;
+        }
+
+        .intro-text strong {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        /* Seção de features */
+        .features-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+            margin-top: 40px;
+        }
+
+        .feature-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+
+        .feature-card .icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+
+        .feature-card h3 {
+            color: #667eea;
+            font-size: 1.3em;
+            margin-bottom: 10px;
+        }
+
+        .feature-card p {
+            color: #555;
+            font-size: 0.95em;
+            line-height: 1.6;
+        }
+
+        /* CTA Button */
+        .cta-section {
+            margin-top: 50px;
+            animation: fadeIn 1s ease 0.6s both;
+        }
+
+        .cta-button {
+            display: inline-block;
+            padding: 18px 50px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 50px;
+            font-size: 1.2em;
+            font-weight: 600;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.5);
+        }
+
+        /* Footer */
+        .footer {
+            color: rgba(255, 255, 255, 0.8);
+            text-align: center;
+            padding: 30px 20px;
+            font-size: 0.9em;
+        }
+
+        /* Animações */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .login-button {
+                top: 20px;
+                right: 20px;
+                padding: 10px 20px;
+                font-size: 0.9em;
+            }
+
+            .logo-section h1 {
+                font-size: 2.5em;
+            }
+
+            .logo-section .subtitle {
+                font-size: 1.2em;
+            }
+
+            .intro-card {
+                padding: 40px 30px;
+            }
+
+            .intro-card h2 {
+                font-size: 2em;
+            }
+
+            .intro-card .intro-text {
+                font-size: 1.1em;
+            }
+
+            .features-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Highlight box */
+        .highlight-box {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 30px 0;
+        }
+
+        .highlight-box h3 {
+            color: #667eea;
+            font-size: 1.4em;
+            margin-bottom: 15px;
+        }
+
+        .highlight-box p {
+            color: #555;
+            line-height: 1.7;
+        }
+    </style>
+</head>
+<body>
+    <!-- Botão de Login fixo no canto superior direito -->
+    <a href="{% url 'auth:login' %}" class="login-button">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M15 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M10 17L15 12L10 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M15 12H3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Login
+    </a>
+
+    <div class="hero-container">
+        <!-- Logo e título -->
+        <div class="logo-section">
+            <h1>Mapa do Bosque</h1>
+            <p class="subtitle">Transformando Dados em Insights</p>
+        </div>
+
+        <!-- Card de introdução -->
+        <div class="intro-card">
+            <h2>Bem-vindo ao Mapa do Bosque</h2>
+
+            <div class="intro-text">
+                <p>
+                    O <strong>Mapa do Bosque</strong> é uma iniciativa inovadora do time de <strong>Transformação Digital</strong>
+                    que visa centralizar todas as informações em um único local integrado e acessível.
+                </p>
+
+                <p>
+                    Nossa plataforma foi desenvolvida para transformar dados brutos em insights valiosos,
+                    seguindo a metodologia <strong>Working Backwards (WBR)</strong>, garantindo que cada decisão
+                    seja orientada por dados concretos e análises profundas.
+                </p>
+
+                <div class="highlight-box">
+                    <h3>Metodologia Working Backwards</h3>
+                    <p>
+                        O WBR é uma abordagem que começa com o resultado desejado e trabalha de trás para frente,
+                        identificando os dados e métricas necessários para alcançar os objetivos. Com o Mapa do Bosque,
+                        centralizamos todas as informações para facilitar essa análise estratégica e orientada a resultados.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Features -->
+            <div class="features-section">
+                <div class="feature-card">
+                    <div class="icon">📊</div>
+                    <h3>Dados Centralizados</h3>
+                    <p>Todas as informações em um só lugar, acessíveis e organizadas</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="icon">🔍</div>
+                    <h3>Insights Valiosos</h3>
+                    <p>Transforme dados em decisões estratégicas fundamentadas</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="icon">🌳</div>
+                    <h3>Monitoramento Ambiental</h3>
+                    <p>Acompanhe em tempo real toda a gestão florestal</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="icon">⚡</div>
+                    <h3>Metodologia WBR</h3>
+                    <p>Decisões orientadas por resultados e dados concretos</p>
+                </div>
+            </div>
+
+            <!-- Call to Action -->
+            <div class="cta-section">
+                <a href="{% url 'auth:login' %}" class="cta-button">Começar Agora</a>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>© 2025 Mapa do Bosque - Time de Transformação Digital</p>
+            <p>Sistema de Gestão e Monitoramento Florestal</p>
+        </div>
+    </div>
+</body>
+</html>

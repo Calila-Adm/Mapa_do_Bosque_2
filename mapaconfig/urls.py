@@ -1,5 +1,5 @@
 """
-URL configuration for settings project.
+URL configuration for mapaconfig project.
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/5.2/topics/http/urls/
@@ -17,8 +17,11 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.http import HttpResponse
+from . import views
 
 urlpatterns = [
+    path('', views.initial_view, name='initial'),
     path('admin/', admin.site.urls),
-    path('Relatorio/', include('bosque.urls'))
+    path('login/', include('auth.urls')),
+    path('relatorio/', include('bosque.urls'))
 ]
