@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: mapa-do-bosque-web
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - ./.secrets:/app/.secrets
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - mapa-network
+    restart: unless-stopped
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: mapa-do-bosque-ngrok
+    command:
+      - "start"
+      - "--all"
+      - "--config"
+      - "/etc/ngrok.yml"
+    volumes:
+      - ./ngrok.yml:/etc/ngrok.yml
+    ports:
+      - "4040:4040"  # Ngrok web interface
+    networks:
+      - mapa-network
+    depends_on:
+      - web
+    restart: unless-stopped
+
+networks:
+  mapa-network:
+    driver: bridge

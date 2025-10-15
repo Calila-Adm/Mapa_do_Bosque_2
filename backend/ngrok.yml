@@ -1,0 +1,7 @@
+version: "2"
+authtoken: '329uNo0KrcyqOH0T6EKD7IZMA6H_246jP29G7NBi1xyKq5eud'
+tunnels:
+  mapa-do-bosque:
+    proto: http
+    addr: web:8000
+    inspect: true
