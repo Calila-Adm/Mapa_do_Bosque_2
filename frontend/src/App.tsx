@@ -1,7 +1,7 @@
 import { Routes, Route } from 'react-router';
 import Home from './pages/Home';
 import Login from './pages/Login';
-import './App.css';
+import OperationsPanel from './pages/OperationsPanel';
 
 /**
  * Componente principal da aplicação
@@ -12,6 +12,7 @@ function App() {
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/dashboard" element={<OperationsPanel />} />
     </Routes>
   );
 }

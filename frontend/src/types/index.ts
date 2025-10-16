@@ -40,3 +40,27 @@ export interface ApiError {
   status: number;
   errors?: Record<string, string[]>;
 }
+
+// Tipos de Filtros
+export interface FilterValues {
+  date: string;
+  shopping: string;
+  ramo: string;
+  categoria: string;
+  loja: string;
+}
+
+export type ShoppingOption = 'iguatemi-bosque' | 'grao-para' | 'bosque-dos-ipes';
+
+export interface FilterOption {
+  value: string;
+  label: string;
+}
+
+// Tipos de KPI (Key Performance Indicators)
+export interface KPIData {
+  title: string;
+  value: string;
+  change: string;
+  positive: boolean;
+}
