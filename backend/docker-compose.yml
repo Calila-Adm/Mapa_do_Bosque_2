@@ -26,7 +26,7 @@ services:
     volumes:
       - ./ngrok.yml:/etc/ngrok.yml
     ports:
-      - "4040:4040"  # Ngrok web interface
+      - "4041:4040"  # Ngrok web interface (mapeado para 4041 no host)
     networks:
       - mapa-network
     depends_on:

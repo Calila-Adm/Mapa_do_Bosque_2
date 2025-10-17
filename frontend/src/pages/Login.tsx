@@ -3,28 +3,35 @@ import { useNavigate } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useAuth } from '@/contexts/AuthContext';
 import grupoJccLogo from '../assets/Grupo JCC.svg';
 
 /**
  * Página de Login
- * Estrutura básica para autenticação
+ * Integrada com a API de autenticação
  */
 export function Login() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const { login } = useAuth();
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
 
-    // Simular login (implementar lógica real depois)
-    setTimeout(() => {
-      setIsLoading(false);
-      console.log('Login:', { email, password });
+    try {
+      await login(username, password);
       navigate('/dashboard'); // Redireciona para o Painel de Operações
-    }, 1500);
+    } catch (err) {
+      setError('Credenciais inválidas. Tente novamente.');
+      console.error('Erro no login:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleBackToHome = () => {
@@ -53,15 +60,22 @@ export function Login() {
 
         {/* Formulário */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {/* Email */}
+          {/* Mensagem de erro */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">
+              {error}
+            </div>
+          )}
+
+          {/* Username */}
           <div className="flex flex-col gap-2">
-            <Label htmlFor="email">E-mail</Label>
+            <Label htmlFor="username">Usuário</Label>
             <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="seu@email.com"
+              id="username"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="seu.usuario"
               required
             />
           </div>
@@ -90,12 +104,20 @@ export function Login() {
           </Button>
         </form>
 
-        {/* Link voltar */}
-        <div
-          className="text-primary text-sm font-semibold text-center cursor-pointer hover:text-primary/80 transition-colors"
-          onClick={handleBackToHome}
-        >
-          ← Voltar para página inicial
+        {/* Links */}
+        <div className="flex flex-col gap-2">
+          <div
+            className="text-primary text-sm font-semibold text-center cursor-pointer hover:text-primary/80 transition-colors"
+            onClick={() => navigate('/cadastro')}
+          >
+            Ainda não tem conta? Cadastre-se →
+          </div>
+          <div
+            className="text-primary text-sm font-semibold text-center cursor-pointer hover:text-primary/80 transition-colors"
+            onClick={handleBackToHome}
+          >
+            ← Voltar para página inicial
+          </div>
         </div>
       </div>
     </div>

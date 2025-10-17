@@ -61,6 +61,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'rest_framework',
+    'rest_framework.authtoken',  # Para criar tokens de autenticação
+    'api',  # Seu app com User, Cadastro e Login
     'bosque',
     'authentication',
 ]
@@ -76,9 +78,35 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # Porta padrão do Vite (usado com React)
-    "http://localhost:3000",  # Porta alternativa
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:5173",  # Porta padrão do Vite (usado com React)
+#     "http://localhost:3000",  # Porta alternativa
+#     "http://127.0.0.1:5173",  # Localhost alternativo
+# ]
+
+# TEMPORÁRIO: Permitir todas as origens para desenvolvimento
+CORS_ALLOW_ALL_ORIGINS = True
+
+# Configurações adicionais de CORS
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
 ]
 
 ROOT_URLCONF = 'mapaconfig.urls'
@@ -153,3 +181,25 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Login URL configuration
 LOGIN_URL = '/login/'
+
+# User Model customizado
+AUTH_USER_MODEL = 'api.User'
+
+# Configuração do Django REST Framework
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',  # Autenticação por Token
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',  # Por padrão, todas as rotas precisam de autenticação
+    ],
+}
+
+# Configuração de Email (Outlook)
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.getenv('EMAIL_HOST')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL')

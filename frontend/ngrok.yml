@@ -1,11 +1,7 @@
 version: "2"
 authtoken: '329uNo0KrcyqOH0T6EKD7IZMA6H_246jP29G7NBi1xyKq5eud'
 tunnels:
-  backend:
-    proto: http
-    addr: backend:8000
-    inspect: true
-  frontend:
+  mapa-frontend:
     proto: http
     addr: frontend:5173
     inspect: true

@@ -1,19 +1,41 @@
 import { Routes, Route } from 'react-router';
+import { AuthProvider } from './contexts/AuthContext';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import Home from './pages/Home';
 import Login from './pages/Login';
+import Cadastro from './pages/Cadastro';
 import OperationsPanel from './pages/OperationsPanel';
+import InstagramPanel from './pages/InstagramPanel';
 
 /**
  * Componente principal da aplicação
- * Gerencia rotas e navegação
+ * Gerencia rotas, navegação e autenticação
  */
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/dashboard" element={<OperationsPanel />} />
-    </Routes>
+    <AuthProvider>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/cadastro" element={<Cadastro />} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <OperationsPanel />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/instagram"
+          element={
+            <ProtectedRoute>
+              <InstagramPanel />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </AuthProvider>
   );
 }
 

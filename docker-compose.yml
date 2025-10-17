@@ -1,0 +1,56 @@
+services:
+  # Backend Django
+  backend:
+    build: ./backend
+    container_name: mapa-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./backend/.secrets:/app/.secrets
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - mapa-network
+    restart: unless-stopped
+
+  # Frontend React
+  frontend:
+    build: ./frontend
+    container_name: mapa-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=https://71deff6d077f.ngrok-free.app/api
+    networks:
+      - mapa-network
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  # Ngrok - Expõe backend E frontend
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: mapa-ngrok
+    command:
+      - "start"
+      - "--all"
+      - "--config"
+      - "/etc/ngrok.yml"
+    volumes:
+      - ./backend/ngrok.yml:/etc/ngrok.yml
+    ports:
+      - "4041:4040"
+    networks:
+      - mapa-network
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+
+networks:
+  mapa-network:
+    driver: bridge
