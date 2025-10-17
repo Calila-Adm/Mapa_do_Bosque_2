@@ -62,9 +62,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'rest_framework.authtoken',  # Para criar tokens de autenticação
-    'api',  # Seu app com User, Cadastro e Login
-    'bosque',
-    'authentication',
+    'api',  # App principal com autenticação e API
 ]
 
 MIDDLEWARE = [
@@ -114,7 +112,7 @@ ROOT_URLCONF = 'mapaconfig.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
+        'DIRS': [],  # Não usamos templates HTML (API REST apenas)
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -179,8 +177,7 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Login URL configuration
-LOGIN_URL = '/login/'
+# Removido LOGIN_URL pois usamos API REST, não formulários HTML
 
 # User Model customizado
 AUTH_USER_MODEL = 'api.User'
