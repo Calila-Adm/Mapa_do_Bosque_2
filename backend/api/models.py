@@ -15,23 +15,38 @@ class User(AbstractUser):
         blank=True,
         null=True,
         choices=[
+            ('Advogado', 'Advogado'),
             ('Analista', 'Analista'),
-            ('Gestor', 'Gestor'),
-            ('Administrador', 'Administrador'),
-            ('Superintendente', 'Superintendente'),
-            ('Diretor', 'Diretor'),
-            ('Presidente', 'Presidente'),
-            ('Acionista', 'Acionista'),
-            ('Coordenador', 'Coordenador'),
+            ('Gerente executivo', 'Gerente executivo'),
+            ('Assistente adm', 'Assistente adm'),
             ('Estagiário', 'Estagiário'),
-            ('Outros', 'Outros')
+            ('Fiscal', 'Fiscal'),
+            ('Jovem aprendiz', 'Jovem aprendiz'),
+            ('Supervisor', 'Supervisor'),
+            ('Auditor', 'Auditor'),
+            ('Coordenador', 'Coordenador'),
+            ('Operador', 'Operador'),
+            ('Executivo de vendas', 'Executivo de vendas'),
+            ('Gerente', 'Gerente'),
+            ('Diretor', 'Diretor'),
+            ('Auxiliar', 'Auxiliar'),
         ],
-        default='Desconhecido'
+        default='Analista'
     )
     setor = models.TextField(
         blank=True,
         null=True,
-        default='Desconhecido',
+        choices=[
+            ('Marketing', 'Marketing'),
+            ('Comercial', 'Comercial'),
+            ('Auditoria', 'Auditoria'),
+            ('Recursos Humanos', 'Recursos Humanos'),
+            ('TI', 'TI'),
+            ('TD', 'TD'),
+            ('Contabilidade', 'Contabilidade'),
+            ('Outros', 'Outros'),
+        ],
+        default='Outros'
     )
 
     class Meta:

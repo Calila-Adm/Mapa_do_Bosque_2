@@ -75,7 +75,7 @@ export function Login() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="seu.usuario"
+              placeholder="Ex: osman.pontes"
               required
             />
           </div>
