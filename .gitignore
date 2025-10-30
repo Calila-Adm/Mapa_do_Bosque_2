@@ -1,0 +1,26 @@
+# Database dumps
+backend/dumps/
+*.sql
+
+# Frontend
+node_modules/
+dist/
+build/
+
+# Backend
+__pycache__/
+*.py[oc]
+.venv/
+*.log
+
+# Environment variables
+.env
+.env.*
+.secrets/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
