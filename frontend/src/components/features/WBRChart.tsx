@@ -1,44 +1,129 @@
 /**
  * Componente WBRChart usando ECharts
  * Migrado da lógica Python/Plotly para TypeScript/React/ECharts
+ * OTIMIZADO: React.memo + useMemo para evitar re-renders desnecessários
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, memo } from 'react';
 import * as echarts from 'echarts';
-import type { WBRChartProps, KPIData } from '@/types/wbr.types';
+import type { KPIData } from '@/types/wbr.types';
+import type { WBRData } from '@/services/wbrApi';
 import {
   formatarValor,
   calcularYoY,
   getYoYColor,
-  gerarLabelsSemanas,
+  gerarLabelsDDMM,
   calcularRangeSeguro,
   converterParaECharts,
 } from '@/lib/chartUtils';
 import { cn } from '@/lib/utils';
 
-export function WBRChart({
+// Props ajustadas para aceitar WBRData da API
+export interface WBRChartProps {
+  data: WBRData;
+  titulo: string;
+  unidade: string;
+  dataReferencia: Date;
+  isRGM?: boolean;
+}
+
+// Função para comparar props e evitar re-renders desnecessários
+const arePropsEqual = (prevProps: WBRChartProps, nextProps: WBRChartProps) => {
+  // Compara propriedades simples primeiro
+  if (
+    prevProps.titulo !== nextProps.titulo ||
+    prevProps.unidade !== nextProps.unidade ||
+    prevProps.isRGM !== nextProps.isRGM ||
+    prevProps.dataReferencia.getTime() !== nextProps.dataReferencia.getTime()
+  ) {
+    return false;
+  }
+
+  // Compara dados de forma mais profunda (verifica se o conteúdo mudou)
+  // Compara anos
+  if (
+    prevProps.data.ano_atual !== nextProps.data.ano_atual ||
+    prevProps.data.ano_anterior !== nextProps.data.ano_anterior
+  ) {
+    return false;
+  }
+
+  // Compara arrays de índices (datas)
+  const prevIndexCY = JSON.stringify(prevProps.data.semanas_cy.index);
+  const nextIndexCY = JSON.stringify(nextProps.data.semanas_cy.index);
+  if (prevIndexCY !== nextIndexCY) {
+    return false;
+  }
+
+  // Compara valores de métricas (semanas e meses)
+  const prevValuesCY = JSON.stringify(prevProps.data.semanas_cy.metric_value);
+  const nextValuesCY = JSON.stringify(nextProps.data.semanas_cy.metric_value);
+  const prevValuesPY = JSON.stringify(prevProps.data.semanas_py.metric_value);
+  const nextValuesPY = JSON.stringify(nextProps.data.semanas_py.metric_value);
+  const prevMonthsCY = JSON.stringify(prevProps.data.meses_cy.metric_value);
+  const nextMonthsCY = JSON.stringify(nextProps.data.meses_cy.metric_value);
+  const prevMonthsPY = JSON.stringify(prevProps.data.meses_py.metric_value);
+  const nextMonthsPY = JSON.stringify(nextProps.data.meses_py.metric_value);
+
+  if (
+    prevValuesCY !== nextValuesCY ||
+    prevValuesPY !== nextValuesPY ||
+    prevMonthsCY !== nextMonthsCY ||
+    prevMonthsPY !== nextMonthsPY
+  ) {
+    return false;
+  }
+
+  // Se tudo é igual, pode reutilizar o render anterior
+  return true;
+};
+
+const WBRChartComponent = ({
   data,
   titulo,
   unidade,
   dataReferencia,
   isRGM = false,
-}: WBRChartProps) {
+}: WBRChartProps) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
 
   useEffect(() => {
-    if (!chartRef.current) return;
+    console.log('[WBRChart] useEffect chamado para:', titulo);
+
+    if (!chartRef.current) {
+      console.log('[WBRChart] chartRef.current não existe ainda');
+      return;
+    }
+
+    // Validação básica dos dados
+    if (!data || !data.semanas_cy || !data.semanas_py ||
+        !data.meses_cy || !data.meses_py) {
+      console.error('[WBRChart] Dados inválidos recebidos para:', titulo, data);
+      return;
+    }
+
+    console.log('[WBRChart] Dados válidos recebidos para:', titulo, {
+      semanas_cy_length: Object.keys(data.semanas_cy.metric_value || {}).length,
+      meses_cy_length: Object.keys(data.meses_cy.metric_value || {}).length
+    });
 
     // Inicializa instância do ECharts
     if (!chartInstance.current) {
       chartInstance.current = echarts.init(chartRef.current);
     }
 
-    // Prepara dados
-    const valoresCYSemanas = converterParaECharts(data.semanas_cy.metric_value);
-    const valoresPYSemanas = converterParaECharts(data.semanas_py.metric_value);
-    const valoresCYMeses = converterParaECharts(data.meses_cy.metric_value);
-    const valoresPYMeses = converterParaECharts(data.meses_py.metric_value);
+    // Prepara dados com validação
+    let valoresCYSemanas = converterParaECharts(data.semanas_cy.metric_value || {});
+    let valoresPYSemanas = converterParaECharts(data.semanas_py.metric_value || {});
+    const valoresCYMeses = converterParaECharts(data.meses_cy.metric_value || {});
+    const valoresPYMeses = converterParaECharts(data.meses_py.metric_value || {});
+
+    // Para gráficos não-RGM, limitar a apenas 6 semanas
+    if (!isRGM && valoresCYSemanas.length > 6) {
+      valoresCYSemanas = valoresCYSemanas.slice(-6);
+      valoresPYSemanas = valoresPYSemanas.slice(-6);
+    }
 
     // Garante 12 meses
     while (valoresCYMeses.length < 12) valoresCYMeses.push(null);
@@ -50,8 +135,18 @@ export function WBRChart({
     );
     const yoyMeses = valoresCYMeses.map((cy, i) => calcularYoY(cy, valoresPYMeses[i]));
 
-    // Gera labels
-    const labelsSemanas = gerarLabelsSemanas(data.semanas_cy.index);
+    // Gera labels - converte strings para Date se necessário
+    let datesArray = (data.semanas_cy.index || []).map(d =>
+      typeof d === 'string' ? new Date(d) : d
+    );
+
+    // Para gráficos não-RGM, limitar a apenas 6 semanas
+    if (!isRGM && datesArray.length > 6) {
+      datesArray = datesArray.slice(-6);
+    }
+
+    // Usa formato DD/MM ao invés de "Wk XX" para semanas móveis
+    const labelsSemanas = gerarLabelsDDMM(datesArray);
     // Labels de meses sempre de JAN a DEZ (12 meses fixos)
     const labelsMeses = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
     const labelsX = [...labelsSemanas, '', ...labelsMeses];
@@ -110,27 +205,23 @@ export function WBRChart({
         },
         markPoint: {
           symbol: 'none',
-          label: {
-            show: true,
-            formatter: (params: any) => {
-              const idx = params.dataIndex;
-              const yoy = yoySemanas[idx];
-              if (yoy === null) return '';
-              return formatarValor(yoy, 'percentual');
-            },
-            fontSize: 13,
-            color: (params: any) => {
-              const idx = params.dataIndex;
-              const yoy = yoySemanas[idx];
-              return getYoYColor(yoy);
-            },
-            offset: [0, -15],
-          },
-          data: xSemanas.map((x, i) => ({
-            name: `semana-${i}`,
-            coord: [x, valoresCYSemanas[i]],
-            dataIndex: i,
-          })),
+          data: xSemanas
+            .filter((_, i) => valoresCYSemanas[i] !== null)
+            .map((x, i) => ({
+              name: `semana-${i}`,
+              coord: [x, valoresCYSemanas[i] || 0] as [number, number],
+              label: {
+                show: true,
+                formatter: () => {
+                  const yoy = yoySemanas[i];
+                  if (yoy === null) return '';
+                  return formatarValor(yoy, 'percentual');
+                },
+                fontSize: 13,
+                color: getYoYColor(yoySemanas[i]),
+                offset: [0, -15],
+              },
+            })),
         },
       });
     }
@@ -157,66 +248,205 @@ export function WBRChart({
       .map((v, i) => (v !== null ? i : -1))
       .filter((i) => i >= 0);
     if (indicesValidosCY.length > 0) {
-      // Verifica se o último mês é parcial
-      const ultimoIndiceCY = indicesValidosCY[indicesValidosCY.length - 1];
-      const ehMesParcial = data.mes_parcial_cy;
+      // Verifica se estamos no meio do mês (não é final do mês)
+      const mesAtual = dataReferencia.getMonth(); // 0-11
+      const ultimoDiaDoMes = new Date(
+        dataReferencia.getFullYear(),
+        mesAtual + 1,
+        0
+      ).getDate();
+      const diaAtual = dataReferencia.getDate();
+      const isEndOfMonth = diaAtual === ultimoDiaDoMes;
 
-      series.push({
-        name: `${data.ano_atual}`,
-        type: 'line',
-        data: indicesValidosCY.map((i) => [xMeses[i], valoresCYMeses[i]]),
-        lineStyle: { color: '#00008B', width: 2.5 },
-        itemStyle: { color: '#00008B' },
-        symbol: 'diamond',
-        symbolSize: 8,
-        smooth: true,
-        yAxisIndex: 1,
-        label: {
-          show: true,
-          position: 'top',
-          formatter: (params: any) => {
-            const valor = (params.value as number[])[1];
-            return formatarValor(valor, 'numero');
-          },
-          fontSize: 15,
-          color: (params: any) => {
-            // Se é o último ponto e é mês parcial, usa cinza
-            const xValue = (params.value as number[])[0];
-            const mesIndex = xValue - mesesOffset;
-            if (ehMesParcial && mesIndex === ultimoIndiceCY) {
-              return 'gray';
-            }
-            return 'black';
-          },
-          offset: [0, 0],
-        },
-        markPoint: {
-          symbol: 'none',
+      // Se não é RGM e não está no final do mês, divide a linha em duas partes
+      if (!isRGM && !isEndOfMonth && valoresCYMeses[mesAtual] !== null) {
+        // Encontra o último mês válido antes do mês atual
+        const indicesAntesMesAtual = indicesValidosCY.filter(i => i < mesAtual);
+        const ultimoMesAnterior = indicesAntesMesAtual.length > 0
+          ? indicesAntesMesAtual[indicesAntesMesAtual.length - 1]
+          : null;
+
+        // Parte 1: Meses anteriores ao mês atual (linha sólida)
+        if (indicesAntesMesAtual.length > 0) {
+          series.push({
+            name: `${data.ano_atual}`,
+            type: 'line',
+            data: indicesAntesMesAtual.map((i) => [xMeses[i], valoresCYMeses[i]]),
+            lineStyle: { color: '#00008B', width: 2.5, type: 'solid' },
+            itemStyle: { color: '#00008B' },
+            symbol: 'diamond',
+            symbolSize: 8,
+            smooth: true,
+            yAxisIndex: 1,
+            label: {
+              show: true,
+              position: 'top',
+              formatter: (params: any) => {
+                const valor = (params.value as number[])[1];
+                return formatarValor(valor, 'numero');
+              },
+              fontSize: 15,
+              color: 'black',
+              offset: [0, 0],
+            },
+            markPoint: {
+              symbol: 'none',
+              data: indicesAntesMesAtual
+                .filter(i => valoresCYMeses[i] !== null)
+                .map((i) => ({
+                  name: `mes-${i}`,
+                  coord: [xMeses[i], valoresCYMeses[i] || 0] as [number, number],
+                  label: {
+                    show: true,
+                    formatter: () => {
+                      const yoy = yoyMeses[i];
+                      if (yoy === null) return '';
+                      return formatarValor(yoy, 'percentual');
+                    },
+                    fontSize: 13,
+                    color: getYoYColor(yoyMeses[i]),
+                    offset: [0, -15],
+                  },
+                })),
+            },
+          });
+        }
+
+        // Parte 2: Linha pontilhada do último mês anterior até o mês atual
+        // Precisa de 2 pontos para desenhar a linha
+        if (ultimoMesAnterior !== null) {
+          series.push({
+            name: `${data.ano_atual}`,
+            type: 'line',
+            data: [
+              [xMeses[ultimoMesAnterior], valoresCYMeses[ultimoMesAnterior]],
+              [xMeses[mesAtual], valoresCYMeses[mesAtual]]
+            ],
+            lineStyle: { color: '#00008B', width: 2.5, type: 'dashed' },
+            itemStyle: { color: '#00008B' },
+            symbol: 'diamond',
+            symbolSize: 8,
+            smooth: true,
+            yAxisIndex: 1,
+            label: {
+              show: true,
+              position: 'top',
+              formatter: (params: any) => {
+                const valor = (params.value as number[])[1];
+                return formatarValor(valor, 'numero');
+              },
+              fontSize: 15,
+              color: 'black',
+              offset: [0, 0],
+            },
+            markPoint: {
+              symbol: 'none',
+              data: [{
+                name: `mes-${mesAtual}`,
+                coord: [xMeses[mesAtual], valoresCYMeses[mesAtual] || 0] as [number, number],
+                label: {
+                  show: true,
+                  formatter: () => {
+                    const yoy = yoyMeses[mesAtual];
+                    if (yoy === null) return '';
+                    return formatarValor(yoy, 'percentual');
+                  },
+                  fontSize: 13,
+                  color: getYoYColor(yoyMeses[mesAtual]),
+                  offset: [0, -15],
+                },
+              }],
+            },
+          });
+        } else {
+          // Se não há mês anterior (janeiro), apenas renderiza o ponto
+          series.push({
+            name: `${data.ano_atual}`,
+            type: 'line',
+            data: [[xMeses[mesAtual], valoresCYMeses[mesAtual]]],
+            lineStyle: { color: '#00008B', width: 2.5, type: 'dashed' },
+            itemStyle: { color: '#00008B' },
+            symbol: 'diamond',
+            symbolSize: 8,
+            smooth: false,
+            yAxisIndex: 1,
+            showSymbol: true,
+            label: {
+              show: true,
+              position: 'top',
+              formatter: (params: any) => {
+                const valor = (params.value as number[])[1];
+                return formatarValor(valor, 'numero');
+              },
+              fontSize: 15,
+              color: 'black',
+              offset: [0, 0],
+            },
+            markPoint: {
+              symbol: 'none',
+              data: [{
+                name: `mes-${mesAtual}`,
+                coord: [xMeses[mesAtual], valoresCYMeses[mesAtual] || 0] as [number, number],
+                label: {
+                  show: true,
+                  formatter: () => {
+                    const yoy = yoyMeses[mesAtual];
+                    if (yoy === null) return '';
+                    return formatarValor(yoy, 'percentual');
+                  },
+                  fontSize: 13,
+                  color: getYoYColor(yoyMeses[mesAtual]),
+                  offset: [0, -15],
+                },
+              }],
+            },
+          });
+        }
+      } else {
+        // Caso padrão: linha inteira sólida (RGM ou final do mês)
+        series.push({
+          name: `${data.ano_atual}`,
+          type: 'line',
+          data: indicesValidosCY.map((i) => [xMeses[i], valoresCYMeses[i]]),
+          lineStyle: { color: '#00008B', width: 2.5, type: 'solid' },
+          itemStyle: { color: '#00008B' },
+          symbol: 'diamond',
+          symbolSize: 8,
+          smooth: true,
+          yAxisIndex: 1,
           label: {
             show: true,
+            position: 'top',
             formatter: (params: any) => {
-              const value = params.value as number[];
-              const mesIndex = value[0] - mesesOffset;
-              const yoy = yoyMeses[mesIndex];
-              if (yoy === null) return '';
-              return formatarValor(yoy, 'percentual');
+              const valor = (params.value as number[])[1];
+              return formatarValor(valor, 'numero');
             },
-            fontSize: 13,
-            color: (params: any) => {
-              const value = params.value as number[];
-              const mesIndex = value[0] - mesesOffset;
-              const yoy = yoyMeses[mesIndex];
-              return getYoYColor(yoy);
-            },
-            offset: [0, -15],
+            fontSize: 15,
+            color: 'black',
+            offset: [0, 0],
           },
-          data: indicesValidosCY.map((i) => ({
-            name: `mes-${i}`,
-            coord: [xMeses[i], valoresCYMeses[i]],
-            value: [xMeses[i], valoresCYMeses[i]],
-          })),
-        },
-      });
+          markPoint: {
+            symbol: 'none',
+            data: indicesValidosCY
+              .filter(i => valoresCYMeses[i] !== null)
+              .map((i) => ({
+                name: `mes-${i}`,
+                coord: [xMeses[i], valoresCYMeses[i] || 0] as [number, number],
+                label: {
+                  show: true,
+                  formatter: () => {
+                    const yoy = yoyMeses[i];
+                    if (yoy === null) return '';
+                    return formatarValor(yoy, 'percentual');
+                  },
+                  fontSize: 13,
+                  color: getYoYColor(yoyMeses[i]),
+                  offset: [0, -15],
+                },
+              })),
+          },
+        });
+      }
     }
 
     // Configuração do gráfico
@@ -251,20 +481,26 @@ export function WBRChart({
       yAxis: [
         {
           type: 'value',
-          name: '',
+          name: unidade || '',
           nameTextStyle: { fontSize: 14 },
           min: rangeYSemanas[0],
           max: rangeYSemanas[1],
-          axisLabel: { show: false },
+          axisLabel: {
+            show: !isRGM, // Se for RGM, não mostra o eixo Y semanal
+            formatter: (value: number) => formatarValor(value, 'numero')
+          },
           splitLine: { lineStyle: { color: '#f0f0f0' } },
         },
         {
           type: 'value',
-          name: '',
+          name: unidade || '',
           nameTextStyle: { fontSize: 14 },
           min: rangeYMeses[0],
           max: rangeYMeses[1],
-          axisLabel: { show: false },
+          axisLabel: {
+            show: true, // Sempre mostra o eixo Y mensal
+            formatter: (value: number) => formatarValor(value, 'numero')
+          },
           splitLine: { show: false },
           position: 'right',
         },
@@ -272,8 +508,39 @@ export function WBRChart({
       series,
     };
 
-    // Adiciona linha separadora (REMOVIDO)
+    // Adiciona linha separadora entre visão semana e mês
     option.graphic = [];
+
+    // Linha vertical entre semanas e meses
+    const separatorX = semanasCount + 0.5;
+    if (chartRef.current) {
+      const chartWidth = chartRef.current.clientWidth;
+      const chartHeight = chartRef.current.clientHeight;
+      const gridLeft = 60;
+      const gridRight = 60;
+      const gridTop = 70;
+      const gridBottom = 100;
+
+      // Calcula posição X da linha (proporcionalmente)
+      const totalDataPoints = labelsX.length;
+      const lineXPosition = gridLeft + ((separatorX / totalDataPoints) * (chartWidth - gridLeft - gridRight));
+
+      option.graphic.push({
+        type: 'line',
+        z: 998,
+        shape: {
+          x1: lineXPosition,
+          y1: gridTop,
+          x2: lineXPosition,
+          y2: chartHeight - gridBottom,
+        },
+        style: {
+          stroke: '#88888888',
+          lineWidth: 1,
+          lineDash: [5, 5],
+        },
+      });
+    }
 
     // Se é RGM, adiciona overlay cinza na área semanal
     if (isRGM && chartRef.current) {
@@ -284,44 +551,38 @@ export function WBRChart({
         top: 80,
         shape: {
           width: ((semanasCount / labelsX.length) * (chartRef.current.clientWidth - 120)),
-          height: chartRef.current.clientHeight - 300,
+          height: chartRef.current.clientHeight - 188,
         },
         style: {
           fill: 'rgba(202, 202, 202, 0.9)',
         },
       });
-
-      option.graphic?.push({
-        type: 'text',
-        z: 1000,
-        left: 'center',
-        top: 'middle',
-        style: {
-          text: '⚠️ Não temos dados\nsemanais dessa métrica',
-          fontSize: 18,
-          fontWeight: 'bold',
-          fill: 'white',
-          align: 'center',
-        },
-      });
     }
 
-    chartInstance.current.setOption(option);
+    chartInstance.current.setOption(option, {
+      notMerge: true,   // Recria o gráfico completamente quando dados mudam (importante para filtros)
+      lazyUpdate: false, // Atualiza imediatamente
+    });
 
     // Cleanup ao desmontar
     return () => {
       chartInstance.current?.dispose();
       chartInstance.current = null;
     };
-  }, [data, titulo, unidade, dataReferencia, isRGM]);
+  }, [data, titulo, unidade, isRGM]); // Removido dataReferencia - não é necessário
 
   // Renderiza KPIs
   const renderKPIs = () => {
+    if (!data || !data.semanas_cy || !data.semanas_py ||
+        !data.meses_cy || !data.meses_py) {
+      return null;
+    }
+
     const kpis = calcularKPIs(
-      converterParaECharts(data.semanas_cy.metric_value),
-      converterParaECharts(data.semanas_py.metric_value),
-      converterParaECharts(data.meses_cy.metric_value),
-      converterParaECharts(data.meses_py.metric_value),
+      converterParaECharts(data.semanas_cy.metric_value || {}),
+      converterParaECharts(data.semanas_py.metric_value || {}),
+      converterParaECharts(data.meses_cy.metric_value || {}),
+      converterParaECharts(data.meses_py.metric_value || {}),
       dataReferencia
     );
 
@@ -459,5 +720,8 @@ const calcularKPIs = (
     yoyAno,
   };
 };
+
+// Exporta componente memoizado para evitar re-renders desnecessários
+export const WBRChart = memo(WBRChartComponent, arePropsEqual);
 
 export default WBRChart;

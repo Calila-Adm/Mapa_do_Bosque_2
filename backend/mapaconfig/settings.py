@@ -40,13 +40,15 @@ ALLOWED_HOSTS = [
     '.ngrok-free.app',
     '.ngrok.io',
     '.ngrok.app',
+    '.trycloudflare.com',  # Cloudflare Tunnel
 ]
 
-# *CSRF trusted origins for ngrok
+# *CSRF trusted origins for ngrok e cloudflare
 CSRF_TRUSTED_ORIGINS = [
     'https://*.ngrok-free.app',
     'https://*.ngrok.io',
     'https://*.ngrok.app',
+    'https://*.trycloudflare.com',  # Cloudflare Tunnel
 ]
 
 
@@ -63,6 +65,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',  # Para criar tokens de autenticação
     'api',  # App principal com autenticação e API
+    'wbr',  # WBR Analytics - API para gráficos
 ]
 
 MIDDLEWARE = [
@@ -132,7 +135,13 @@ WSGI_APPLICATION = 'mapaconfig.wsgi.application'
 DATABASE_URL = os.getenv('DATABASE_URL')
 
 DATABASES = {
-    'default': db_url.parse(DATABASE_URL)
+    'default': {
+        **db_url.parse(DATABASE_URL),
+        'CONN_MAX_AGE': 0,  # Fecha conexões após cada request
+        'OPTIONS': {
+            'connect_timeout': 10,
+        }
+    }
 }
 
 
@@ -200,3 +209,20 @@ EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL')
+
+
+# ==========================
+# WBR ANALYTICS SETTINGS
+# ==========================
+
+# Connection String para WBR (reutiliza DATABASE_URL)
+DATABASES['default']['CONN_STRING'] = DATABASE_URL
+
+# WBR Configuration
+WBR_DB_POOL_SIZE = int(os.getenv('WBR_DB_POOL_SIZE', '20'))  # 20 conexões para queries paralelas
+WBR_QUERY_TIMEOUT = int(os.getenv('WBR_QUERY_TIMEOUT', '30'))  # 30 segundos timeout
+WBR_CACHE_ENABLED = os.getenv('WBR_CACHE_ENABLED', 'False').lower() == 'true'
+WBR_REDIS_URL = os.getenv('WBR_REDIS_URL', None)  # Ex: redis://localhost:6379/0
+WBR_CACHE_TTL = int(os.getenv('WBR_CACHE_TTL', '3600'))  # 1 hora (3600 segundos)
+WBR_LOG_LEVEL = os.getenv('WBR_LOG_LEVEL', 'INFO')  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+WBR_LOG_FORMAT = os.getenv('WBR_LOG_FORMAT', 'json')  # json ou text

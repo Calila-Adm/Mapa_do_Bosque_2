@@ -1,0 +1,13 @@
+{
+  "grafico_id": "fluxo_de_veiculos",
+  "titulo": "Fluxo de Veículos",
+  "tabela": "\"mapa_do_bosque\".\"fluxo_de_veiculos\"",
+  "colunas": {
+    "data": "data",
+    "valor": "value"
+  },
+  "unidade": "Veículos",
+  "is_rgm": false,
+  "agrupamento": "semanal",
+  "filtros": {}
+}

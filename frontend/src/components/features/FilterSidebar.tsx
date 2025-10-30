@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import DateFilter from './filters/DateFilter';
@@ -8,6 +8,8 @@ import CategoriaFilter from './filters/CategoriaFilter';
 import LojaFilter from './filters/LojaFilter';
 import leftArrowIcon from '../../assets/Left Array.svg';
 import rightArrowIcon from '../../assets/Right Array.svg';
+import type { UserFilters } from '@/services/wbrApi';
+import { wbrApi } from '@/services/wbrApi';
 
 export interface FilterValues {
   date: string;
@@ -25,22 +27,81 @@ interface FilterSidebarProps {
 
 export function FilterSidebar({ onFilterChange, isCollapsed, onToggle }: FilterSidebarProps) {
   const [filters, setFilters] = useState<FilterValues>({
-    date: '',
+    date: '', // Será preenchida com a última data disponível
     shopping: '',
     ramo: '',
     categoria: '',
     loja: '',
   });
+  const [defaultDate, setDefaultDate] = useState<string>('');
+
+  // Busca a última data disponível ao montar o componente
+  useEffect(() => {
+    const loadDefaultDate = async () => {
+      try {
+        const dates = await wbrApi.getAvailableDates();
+        if (dates.length > 0) {
+          const latestDate = dates[0]; // Primeira data (mais recente)
+          setDefaultDate(latestDate);
+
+          const newFilters = { ...filters, date: latestDate };
+          setFilters(newFilters);
+          // Notifica imediatamente com a data carregada
+          onFilterChange?.(newFilters);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar data padrão:', error);
+      }
+    };
+
+    loadDefaultDate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Apenas na montagem
 
   const handleFilterChange = (field: keyof FilterValues, value: string) => {
     const newFilters = { ...filters, [field]: value };
+
+    // Se está limpando um filtro pai na cascata, limpa os filtros filhos também
+    if (field === 'shopping' && value === '') {
+      newFilters.ramo = '';
+      newFilters.categoria = '';
+      newFilters.loja = '';
+    } else if (field === 'ramo' && value === '') {
+      newFilters.categoria = '';
+      newFilters.loja = '';
+    } else if (field === 'categoria' && value === '') {
+      newFilters.loja = '';
+    }
+
     setFilters(newFilters);
     onFilterChange?.(newFilters);
   };
 
+  // Converte FilterValues para UserFilters para passar aos componentes de filtro
+  const appliedFiltersForRamo = useMemo<Partial<UserFilters>>(() => {
+    const result: Partial<UserFilters> = {};
+    if (filters.shopping) result.shopping = filters.shopping;
+    return result;
+  }, [filters.shopping]);
+
+  const appliedFiltersForCategoria = useMemo<Partial<UserFilters>>(() => {
+    const result: Partial<UserFilters> = {};
+    if (filters.shopping) result.shopping = filters.shopping;
+    if (filters.ramo) result.ramo = filters.ramo;
+    return result;
+  }, [filters.shopping, filters.ramo]);
+
+  const appliedFiltersForLoja = useMemo<Partial<UserFilters>>(() => {
+    const result: Partial<UserFilters> = {};
+    if (filters.shopping) result.shopping = filters.shopping;
+    if (filters.ramo) result.ramo = filters.ramo;
+    if (filters.categoria) result.categoria = filters.categoria;
+    return result;
+  }, [filters.shopping, filters.ramo, filters.categoria]);
+
   const handleClearFilters = () => {
     const clearedFilters: FilterValues = {
-      date: '',
+      date: defaultDate, // Ao limpar, volta para a última data disponível
       shopping: '',
       ramo: '',
       categoria: '',
@@ -105,18 +166,21 @@ export function FilterSidebar({ onFilterChange, isCollapsed, onToggle }: FilterS
         <RamoFilter
           value={filters.ramo}
           onChange={(value) => handleFilterChange('ramo', value)}
+          appliedFilters={appliedFiltersForRamo}
         />
 
         {/* Categoria Filter */}
         <CategoriaFilter
           value={filters.categoria}
           onChange={(value) => handleFilterChange('categoria', value)}
+          appliedFilters={appliedFiltersForCategoria}
         />
 
         {/* Loja Filter */}
         <LojaFilter
           value={filters.loja}
           onChange={(value) => handleFilterChange('loja', value)}
+          appliedFilters={appliedFiltersForLoja}
         />
 
         {/* Clear Filters Button */}

@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import Cadastro from './pages/Cadastro';
 import OperationsPanel from './pages/OperationsPanel';
 import InstagramPanel from './pages/InstagramPanel';
+import LoginFigma from './pages/test/LoginFigma';
 
 /**
  * Componente principal da aplicação
@@ -17,9 +18,18 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/login-figma" element={<LoginFigma />} />
         <Route path="/cadastro" element={<Cadastro />} />
         <Route
           path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <OperationsPanel />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/operations"
           element={
             <ProtectedRoute>
               <OperationsPanel />

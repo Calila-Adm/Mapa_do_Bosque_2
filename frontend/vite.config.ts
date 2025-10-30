@@ -14,11 +14,12 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5173,
     strictPort: true,
-    // Permite qualquer host (necessário para ngrok)
+    // Permite qualquer host (necessário para ngrok e cloudflare)
     allowedHosts: [
       '.ngrok-free.app',
       '.ngrok.io',
       '.ngrok.app',
+      '.trycloudflare.com',
       'localhost',
     ],
   },

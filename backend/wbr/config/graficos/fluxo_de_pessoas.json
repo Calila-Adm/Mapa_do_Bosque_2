@@ -1,0 +1,13 @@
+{
+  "grafico_id": "fluxo_de_pessoas",
+  "titulo": "Fluxo de Pessoas",
+  "tabela": "\"mapa_do_bosque\".\"fluxo_de_pessoas\"",
+  "colunas": {
+    "data": "data",
+    "valor": "value"
+  },
+  "unidade": "Pessoas",
+  "is_rgm": false,
+  "agrupamento": "semanal",
+  "filtros": {}
+}

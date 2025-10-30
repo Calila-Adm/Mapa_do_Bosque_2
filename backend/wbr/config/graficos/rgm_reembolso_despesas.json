@@ -1,0 +1,13 @@
+{
+  "grafico_id": "rgm_reembolso_despesas",
+  "titulo": "RGM - Reembolso Despesas",
+  "tabela": "\"mapa_do_bosque\".\"Rgm_reembolso_despesas\"",
+  "colunas": {
+    "data": "data",
+    "valor": "valor"
+  },
+  "unidade": "R$",
+  "is_rgm": true,
+  "agrupamento": "mensal",
+  "filtros": {}
+}

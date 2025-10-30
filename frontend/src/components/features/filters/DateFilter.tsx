@@ -1,6 +1,7 @@
-import type { ChangeEvent } from 'react';
+import { useEffect, useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { wbrApi } from '@/services/wbrApi';
 
 interface DateFilterProps {
   value: string;
@@ -8,25 +9,53 @@ interface DateFilterProps {
 }
 
 export function DateFilter({ value, onChange }: DateFilterProps) {
-  const handleDateChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const input = e.target.value;
+  const [availableDates, setAvailableDates] = useState<string[]>([]);
+  const [minDate, setMinDate] = useState<string>('');
+  const [maxDate, setMaxDate] = useState<string>('');
 
-    // Remove todos os caracteres que não são números ou barra
-    const cleaned = input.replace(/[^\d/]/g, '');
+  useEffect(() => {
+    const loadAvailableDates = async () => {
+      try {
+        const dates = await wbrApi.getAvailableDates();
+        setAvailableDates(dates);
 
-    // Limita o comprimento máximo (DD/MM/YYYY = 10 caracteres)
-    const limited = cleaned.slice(0, 10);
+        if (dates.length > 0) {
+          // Datas vêm ordenadas DESC, então a primeira é a mais recente
+          setMaxDate(dates[0]);
+          setMinDate(dates[dates.length - 1]);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar datas disponíveis:', error);
+      }
+    };
 
-    // Formata automaticamente com barras
-    let formatted = limited;
-    if (limited.length >= 3 && limited.charAt(2) !== '/') {
-      formatted = limited.slice(0, 2) + '/' + limited.slice(2);
+    loadAvailableDates();
+  }, []);
+
+  // Valida quando o usuário seleciona/altera a data
+  const handleDateChange = (newDate: string) => {
+    if (!newDate) {
+      onChange(newDate);
+      return;
     }
-    if (formatted.length >= 6 && formatted.charAt(5) !== '/') {
-      formatted = formatted.slice(0, 5) + '/' + formatted.slice(5);
+
+    // Se ainda não carregou as datas, permite qualquer valor temporariamente
+    if (availableDates.length === 0) {
+      onChange(newDate);
+      return;
     }
 
-    onChange(formatted);
+    // Verifica se a data selecionada existe na lista de datas disponíveis
+    if (availableDates.includes(newDate)) {
+      onChange(newDate);
+    } else {
+      // Data não disponível - busca a mais próxima
+      const closestDate = findClosestAvailableDate(newDate, availableDates);
+      onChange(closestDate);
+
+      // Feedback visual (opcional)
+      console.warn(`Data ${newDate} não disponível. Usando ${closestDate} (mais próxima)`);
+    }
   };
 
   return (
@@ -34,14 +63,38 @@ export function DateFilter({ value, onChange }: DateFilterProps) {
       <Label htmlFor="date-filter">Data</Label>
       <Input
         id="date-filter"
-        type="text"
-        placeholder="DD/MM/YYYY"
+        type="date"
         value={value}
-        onChange={handleDateChange}
-        maxLength={10}
+        onChange={(e) => handleDateChange(e.target.value)}
+        min={minDate}
+        max={maxDate}
+        className="w-full"
       />
+      {maxDate && (
+        <p className="text-xs text-muted-foreground">
+          Última data: {new Date(maxDate + 'T00:00:00').toLocaleDateString('pt-BR')}
+        </p>
+      )}
     </div>
   );
+}
+
+// Encontra a data mais próxima disponível
+function findClosestAvailableDate(targetDate: string, availableDates: string[]): string {
+  const target = new Date(targetDate + 'T00:00:00').getTime();
+
+  let closest = availableDates[0];
+  let minDiff = Math.abs(new Date(closest + 'T00:00:00').getTime() - target);
+
+  for (const date of availableDates) {
+    const diff = Math.abs(new Date(date + 'T00:00:00').getTime() - target);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closest = date;
+    }
+  }
+
+  return closest;
 }
 
 export default DateFilter;

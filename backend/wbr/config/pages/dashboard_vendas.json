@@ -1,0 +1,33 @@
+{
+  "page_id": "dashboard_vendas",
+  "nome": "Dashboard de Vendas",
+  "descricao": "Visão geral de vendas e performance regional",
+  "graficos": [
+    "rgm_valor_bruto",
+    "vendas_gshop",
+    "fluxo_de_pessoas",
+    "fluxo_de_veiculos",
+    "rgm_aluguel_minimo",
+    "rgm_aluguel_percentual",
+    "rgm_condominio",
+    "rgm_fundo_de_promocao",
+    "rgm_cto",
+    "rgm_energia",
+    "rgm_iptu",
+    "rgm_agua",
+    "rgm_taxa_administracao",
+    "rgm_reembolso_despesas",
+    "rgm_multa_rescisoria",
+    "rgm_custos_judiciais",
+    "rgm_honorarios_advocaticios",
+    "rgm_multa_contratual",
+    "rgm_taxa_transferencia",
+    "rgm_esgoto",
+    "rgm_aluguel_mesmas_lojas_ssr",
+    "rgm_aluguel_ssr_yoy",
+    "rgm_aluguel_total",
+    "rgm_area",
+    "rgm_valor_bruto_sss",
+    "rgm_valor_bruto_sss_yoy"
+  ]
+}

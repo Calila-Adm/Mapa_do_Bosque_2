@@ -24,32 +24,33 @@ services:
       - ./frontend:/app
       - /app/node_modules
     environment:
-      - VITE_API_URL=https://71deff6d077f.ngrok-free.app/api
+      - VITE_API_URL=http://localhost:8000/api
     networks:
       - mapa-network
     restart: unless-stopped
     depends_on:
       - backend
 
-  # Ngrok - Expõe backend E frontend
-  ngrok:
-    image: ngrok/ngrok:latest
-    container_name: mapa-ngrok
-    command:
-      - "start"
-      - "--all"
-      - "--config"
-      - "/etc/ngrok.yml"
-    volumes:
-      - ./backend/ngrok.yml:/etc/ngrok.yml
-    ports:
-      - "4041:4040"
-    networks:
-      - mapa-network
-    depends_on:
-      - backend
-      - frontend
-    restart: unless-stopped
+  # Cloudflare Tunnel - Desabilitado para desenvolvimento local
+  # cloudflared-backend:
+  #   image: cloudflare/cloudflared:latest
+  #   container_name: mapa-cloudflared-backend
+  #   command: tunnel --no-autoupdate --url http://backend:8000
+  #   networks:
+  #     - mapa-network
+  #   depends_on:
+  #     - backend
+  #   restart: unless-stopped
+
+  # cloudflared-frontend:
+  #   image: cloudflare/cloudflared:latest
+  #   container_name: mapa-cloudflared-frontend
+  #   command: tunnel --no-autoupdate --url http://frontend:5173
+  #   networks:
+  #     - mapa-network
+  #   depends_on:
+  #     - frontend
+  #   restart: unless-stopped
 
 networks:
   mapa-network:

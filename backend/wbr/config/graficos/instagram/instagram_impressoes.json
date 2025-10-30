@@ -1,0 +1,14 @@
+{
+  "grafico_id": "instagram_impressoes",
+  "titulo": "Instagram - Impressões",
+  "tabela": "instagram_aggregated",
+  "colunas": {
+    "data": "data",
+    "valor": "total_impressoes"
+  },
+  "unidade": "Impressões",
+  "is_rgm": false,
+  "agrupamento": "semanal",
+  "filtros": {},
+  "use_instagram_template": true
+}

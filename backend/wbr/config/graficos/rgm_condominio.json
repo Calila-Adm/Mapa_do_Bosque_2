@@ -1,0 +1,13 @@
+{
+  "grafico_id": "rgm_condominio",
+  "titulo": "RGM - Condomínio",
+  "tabela": "\"mapa_do_bosque\".\"Rgm_condominio\"",
+  "colunas": {
+    "data": "data",
+    "valor": "valor"
+  },
+  "unidade": "R$",
+  "is_rgm": true,
+  "agrupamento": "mensal",
+  "filtros": {}
+}

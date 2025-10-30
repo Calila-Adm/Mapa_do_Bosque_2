@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import DateFilter from './filters/DateFilter';
@@ -18,10 +18,22 @@ interface InstagramFilterSidebarProps {
 }
 
 export function InstagramFilterSidebar({ onFilterChange, isCollapsed, onToggle }: InstagramFilterSidebarProps) {
-  const [filters, setFilters] = useState<InstagramFilterValues>({
-    date: '',
-    shopping: '',
-  });
+  // Função para obter a data de hoje no formato YYYY-MM-DD
+  const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Define filtros iniciais
+  const initialFilters: InstagramFilterValues = {
+    date: getTodayDate(), // Data de hoje como padrão
+    shopping: 'SCIB', // SCIB como padrão
+  };
+
+  const [filters, setFilters] = useState<InstagramFilterValues>(initialFilters);
 
   const handleFilterChange = (field: keyof InstagramFilterValues, value: string) => {
     const newFilters = { ...filters, [field]: value };
@@ -31,12 +43,18 @@ export function InstagramFilterSidebar({ onFilterChange, isCollapsed, onToggle }
 
   const handleClearFilters = () => {
     const clearedFilters: InstagramFilterValues = {
-      date: '',
-      shopping: '',
+      date: getTodayDate(), // Ao limpar, volta para data de hoje
+      shopping: 'SCIB', // Ao limpar, volta para SCIB
     };
     setFilters(clearedFilters);
     onFilterChange?.(clearedFilters);
   };
+
+  // Notifica o pai sobre os filtros iniciais (com data de hoje) quando o componente monta
+  useEffect(() => {
+    onFilterChange?.(initialFilters);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Apenas na montagem
 
   return (
     <div

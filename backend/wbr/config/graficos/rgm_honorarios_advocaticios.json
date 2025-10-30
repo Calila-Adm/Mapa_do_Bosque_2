@@ -1,0 +1,13 @@
+{
+  "grafico_id": "rgm_honorarios_advocaticios",
+  "titulo": "RGM - Honorários Advocatícios",
+  "tabela": "\"mapa_do_bosque\".\"Rgm_honorarios_advocaticios\"",
+  "colunas": {
+    "data": "data",
+    "valor": "valor"
+  },
+  "unidade": "R$",
+  "is_rgm": true,
+  "agrupamento": "mensal",
+  "filtros": {}
+}

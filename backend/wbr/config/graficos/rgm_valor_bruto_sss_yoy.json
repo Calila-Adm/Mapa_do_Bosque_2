@@ -1,0 +1,13 @@
+{
+  "grafico_id": "rgm_valor_bruto_sss_yoy",
+  "titulo": "RGM - Valor Bruto SSS YoY",
+  "tabela": "\"mapa_do_bosque\".\"Rgm_valor_bruto_sss_yoy\"",
+  "colunas": {
+    "data": "data",
+    "valor": "valor"
+  },
+  "unidade": "%",
+  "is_rgm": true,
+  "agrupamento": "mensal",
+  "filtros": {}
+}

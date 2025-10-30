@@ -1,0 +1,13 @@
+{
+  "grafico_id": "vendas_gshop",
+  "titulo": "Vendas GShop",
+  "tabela": "\"mapa_do_bosque\".\"vendas_gshop\"",
+  "colunas": {
+    "data": "data",
+    "valor": "value"
+  },
+  "unidade": "R$",
+  "is_rgm": false,
+  "agrupamento": "semanal",
+  "filtros": {}
+}

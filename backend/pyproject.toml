@@ -16,4 +16,5 @@ dependencies = [
     "numpy>=2.3.3",
     "pandas>=2.3.3",
     "psycopg2>=2.9.11",
+    "redis>=5.0.0",
 ]

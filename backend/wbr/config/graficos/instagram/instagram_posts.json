@@ -1,0 +1,14 @@
+{
+  "grafico_id": "instagram_posts",
+  "titulo": "Instagram - Total de Posts",
+  "tabela": "instagram_aggregated",
+  "colunas": {
+    "data": "data",
+    "valor": "total_posts"
+  },
+  "unidade": "Posts",
+  "is_rgm": false,
+  "agrupamento": "semanal",
+  "filtros": {},
+  "use_instagram_template": true
+}

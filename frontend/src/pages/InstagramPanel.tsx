@@ -1,22 +1,14 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import InstagramFilterSidebar, { type InstagramFilterValues } from '../components/features/InstagramFilterSidebar';
 import { WBRChart } from '@/components/features/WBRChart';
-import type { WBRData } from '@/types/wbr.types';
-
-interface TopPost {
-  id: number;
-  imageUrl: string;
-  instagramUrl: string;
-  likes: number;
-  comments: number;
-  shares: number;
-  saves: number;
-}
+import { useWBRPage } from '@/hooks/useWBRPage';
+import { isWBRData, isWBRError, instagramApi } from '@/services/wbrApi';
+import type { UserFilters, InstagramKPIs, InstagramTopPost } from '@/services/wbrApi';
 
 export function InstagramPanel() {
   const navigate = useNavigate();
@@ -27,10 +19,16 @@ export function InstagramPanel() {
   });
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
+  // Estados para dados do Instagram
+  const [kpis, setKpis] = useState<InstagramKPIs | null>(null);
+  const [topPosts, setTopPosts] = useState<InstagramTopPost[]>([]);
+  const [loadingKpis, setLoadingKpis] = useState(false);
+  const [loadingPosts, setLoadingPosts] = useState(false);
+  const [kpisError, setKpisError] = useState<string | null>(null);
+  const [postsError, setPostsError] = useState<string | null>(null);
+
   const handleFilterChange = (newFilters: InstagramFilterValues) => {
     setFilters(newFilters);
-    console.log('Filtros atualizados:', newFilters);
-    // Aqui futuramente você vai chamar a API com os filtros
   };
 
   const handleSidebarToggle = () => {
@@ -46,555 +44,109 @@ export function InstagramPanel() {
     }
   };
 
-  // Dados mocados para os KPIs do Instagram
-  const kpiData = [
-    { title: 'Total de Seguidores', value: '47.8K', change: '+8.3%', positive: true },
-    { title: 'Engajamento Médio', value: '6.2%', change: '+1.5%', positive: true },
-    { title: 'Alcance do Mês', value: '152K', change: '+15.7%', positive: true },
-    { title: 'Taxa de Salvamento', value: '4.8%', change: '+0.9%', positive: true },
-  ];
+  // Converte InstagramFilterValues para UserFilters (formato da API)
+  const apiFilters = useMemo<UserFilters | undefined>(() => {
+    const result: UserFilters = {};
 
-  // Função para gerar dados mocados do WBR para Likes
-  const gerarDadosMocadosLikes = (): WBRData => {
-    const datasSemanasAtual: Date[] = [];
-    const datasSemanasAnterior: Date[] = [];
-    const hoje = new Date();
+    if (filters.date) result.data_referencia = filters.date;
+    if (filters.shopping) result.shopping = filters.shopping;
 
-    for (let i = 7; i >= 0; i--) {
-      const data = new Date(hoje);
-      data.setDate(data.getDate() - (i * 7));
-      datasSemanasAtual.push(data);
+    // Retorna undefined se não houver filtros
+    return Object.keys(result).length > 0 ? result : undefined;
+  }, [filters]);
 
-      const dataAnterior = new Date(data);
-      dataAnterior.setFullYear(dataAnterior.getFullYear() - 1);
-      datasSemanasAnterior.push(dataAnterior);
+  // Hook que carrega os dados do Instagram com os filtros aplicados
+  const { data: pageData, loading, error, loadingGraficos, progress } = useWBRPage('dashboard_instagram', apiFilters);
+
+  // Busca KPIs do Instagram quando os filtros mudam
+  useEffect(() => {
+    if (!filters.date) return;
+
+    const fetchKPIs = async () => {
+      setLoadingKpis(true);
+      setKpisError(null);
+      try {
+        const data = await instagramApi.getKPIs({
+          data_referencia: filters.date,
+          shopping: filters.shopping || undefined,
+        });
+        setKpis(data);
+      } catch (err) {
+        setKpisError(err instanceof Error ? err.message : 'Erro desconhecido');
+      } finally {
+        setLoadingKpis(false);
+      }
+    };
+
+    fetchKPIs();
+  }, [filters.date, filters.shopping]);
+
+  // Busca Top Posts quando os filtros mudam
+  useEffect(() => {
+    const fetchTopPosts = async () => {
+      setLoadingPosts(true);
+      setPostsError(null);
+      try {
+        const data = await instagramApi.getTopPosts({
+          data_referencia: filters.date || undefined,
+          shopping: filters.shopping || undefined,
+          limit: 3,
+        });
+        setTopPosts(data.posts || []);
+      } catch (err) {
+        setPostsError(err instanceof Error ? err.message : 'Erro desconhecido');
+      } finally {
+        setLoadingPosts(false);
+      }
+    };
+
+    fetchTopPosts();
+  }, [filters.date, filters.shopping]);
+
+  // Calcula os KPIs formatados
+  const formattedKPIs = useMemo(() => {
+    if (!kpis || !kpis.engagement || kpis.engagement.length === 0) {
+      return {
+        seguidores: 0,
+        engajamentoMedio: 0,
+        alcance: 0,
+        taxaSalvamento: 0,
+      };
     }
 
-    const datasMesesAtual: Date[] = [];
-    const datasMesesAnterior: Date[] = [];
+    const engagement = kpis.engagement[0];
+    const totalEngajamento = engagement.engajamento_total;
 
-    for (let i = 0; i < 12; i++) {
-      const data = new Date(hoje.getFullYear(), i, 1);
-      datasMesesAtual.push(data);
+    // Usa o engajamento médio mensal calculado pelo backend
+    const engajamentoMedio = engagement.engajamento_medio_mes || 0;
 
-      const dataAnterior = new Date(data);
-      dataAnterior.setFullYear(dataAnterior.getFullYear() - 1);
-      datasMesesAnterior.push(dataAnterior);
+    // Calcula a taxa de salvamento (salvos / engajamento total * 100)
+    const taxaSalvamento = totalEngajamento > 0
+      ? (engagement.total_salvos / totalEngajamento * 100)
+      : 0;
+
+    // Busca o número de seguidores (follower_demographics)
+    const seguidoresData = kpis.seguidores.find(s => s.METRICA === 'follower_demographics');
+    const seguidores = seguidoresData?.value || 0;
+
+    // Se value for um objeto (demographics breakdown), soma todos os valores
+    let totalSeguidores: number = 0;
+    if (typeof seguidores === 'object' && seguidores !== null) {
+      totalSeguidores = Object.values(seguidores).reduce((acc: number, val: any) => {
+        const numVal = typeof val === 'number' ? val : 0;
+        return acc + numVal;
+      }, 0);
+    } else if (typeof seguidores === 'number') {
+      totalSeguidores = seguidores;
     }
 
-    const valoresSemanasCY: { [key: string]: number } = {};
-    const valoresSemanasAnterior: { [key: string]: number } = {};
-
-    datasSemanasAtual.forEach((data, i) => {
-      const baseValue = 2500 + Math.random() * 800;
-      const crescimento = i * 150;
-      valoresSemanasCY[data.toISOString()] = Math.round(baseValue + crescimento);
-    });
-
-    datasSemanasAnterior.forEach((data, i) => {
-      const baseValue = 2000 + Math.random() * 600;
-      valoresSemanasAnterior[data.toISOString()] = Math.round(baseValue);
-    });
-
-    const valoresMesesCY: { [key: string]: number } = {};
-    const valoresMesesAnterior: { [key: string]: number } = {};
-
-    datasMesesAtual.forEach((data, i) => {
-      if (i <= hoje.getMonth()) {
-        const baseValue = 10000 + Math.random() * 3000;
-        const crescimento = i * 600;
-        valoresMesesCY[data.toISOString()] = Math.round(baseValue + crescimento);
-      }
-    });
-
-    datasMesesAnterior.forEach((data, i) => {
-      if (i <= hoje.getMonth()) {
-        const baseValue = 8000 + Math.random() * 2500;
-        valoresMesesAnterior[data.toISOString()] = Math.round(baseValue);
-      }
-    });
-
     return {
-      semanas_cy: {
-        metric_value: valoresSemanasCY,
-        index: datasSemanasAtual,
-      },
-      semanas_py: {
-        metric_value: valoresSemanasAnterior,
-        index: datasSemanasAnterior,
-      },
-      meses_cy: {
-        metric_value: valoresMesesCY,
-        index: datasMesesAtual,
-      },
-      meses_py: {
-        metric_value: valoresMesesAnterior,
-        index: datasMesesAnterior,
-      },
-      ano_atual: hoje.getFullYear(),
-      ano_anterior: hoje.getFullYear() - 1,
-      semana_parcial: false,
-      mes_parcial_cy: true,
-      mes_parcial_py: false,
+      seguidores: totalSeguidores,
+      engajamentoMedio: engajamentoMedio,
+      alcance: engagement.total_alcance,
+      taxaSalvamento: taxaSalvamento,
     };
-  };
-
-  // Função para gerar dados mocados do WBR para Comentários
-  const gerarDadosMocadosComentarios = (): WBRData => {
-    const datasSemanasAtual: Date[] = [];
-    const datasSemanasAnterior: Date[] = [];
-    const hoje = new Date();
-
-    for (let i = 7; i >= 0; i--) {
-      const data = new Date(hoje);
-      data.setDate(data.getDate() - (i * 7));
-      datasSemanasAtual.push(data);
-
-      const dataAnterior = new Date(data);
-      dataAnterior.setFullYear(dataAnterior.getFullYear() - 1);
-      datasSemanasAnterior.push(dataAnterior);
-    }
-
-    const datasMesesAtual: Date[] = [];
-    const datasMesesAnterior: Date[] = [];
-
-    for (let i = 0; i < 12; i++) {
-      const data = new Date(hoje.getFullYear(), i, 1);
-      datasMesesAtual.push(data);
-
-      const dataAnterior = new Date(data);
-      dataAnterior.setFullYear(dataAnterior.getFullYear() - 1);
-      datasMesesAnterior.push(dataAnterior);
-    }
-
-    const valoresSemanasCY: { [key: string]: number } = {};
-    const valoresSemanasAnterior: { [key: string]: number } = {};
-
-    datasSemanasAtual.forEach((data, i) => {
-      const baseValue = 180 + Math.random() * 50;
-      const crescimento = i * 12;
-      valoresSemanasCY[data.toISOString()] = Math.round(baseValue + crescimento);
-    });
-
-    datasSemanasAnterior.forEach((data, i) => {
-      const baseValue = 140 + Math.random() * 40;
-      valoresSemanasAnterior[data.toISOString()] = Math.round(baseValue);
-    });
-
-    const valoresMesesCY: { [key: string]: number } = {};
-    const valoresMesesAnterior: { [key: string]: number } = {};
-
-    datasMesesAtual.forEach((data, i) => {
-      if (i <= hoje.getMonth()) {
-        const baseValue = 750 + Math.random() * 200;
-        const crescimento = i * 45;
-        valoresMesesCY[data.toISOString()] = Math.round(baseValue + crescimento);
-      }
-    });
-
-    datasMesesAnterior.forEach((data, i) => {
-      if (i <= hoje.getMonth()) {
-        const baseValue = 600 + Math.random() * 150;
-        valoresMesesAnterior[data.toISOString()] = Math.round(baseValue);
-      }
-    });
-
-    return {
-      semanas_cy: {
-        metric_value: valoresSemanasCY,
-        index: datasSemanasAtual,
-      },
-      semanas_py: {
-        metric_value: valoresSemanasAnterior,
-        index: datasSemanasAnterior,
-      },
-      meses_cy: {
-        metric_value: valoresMesesCY,
-        index: datasMesesAtual,
-      },
-      meses_py: {
-        metric_value: valoresMesesAnterior,
-        index: datasMesesAnterior,
-      },
-      ano_atual: hoje.getFullYear(),
-      ano_anterior: hoje.getFullYear() - 1,
-      semana_parcial: false,
-      mes_parcial_cy: true,
-      mes_parcial_py: false,
-    };
-  };
-
-  // Função auxiliar para gerar estrutura de datas
-  const gerarEstruturaBase = () => {
-    const datasSemanasAtual: Date[] = [];
-    const datasSemanasAnterior: Date[] = [];
-    const hoje = new Date();
-
-    for (let i = 7; i >= 0; i--) {
-      const data = new Date(hoje);
-      data.setDate(data.getDate() - (i * 7));
-      datasSemanasAtual.push(data);
-
-      const dataAnterior = new Date(data);
-      dataAnterior.setFullYear(dataAnterior.getFullYear() - 1);
-      datasSemanasAnterior.push(dataAnterior);
-    }
-
-    const datasMesesAtual: Date[] = [];
-    const datasMesesAnterior: Date[] = [];
-
-    for (let i = 0; i < 12; i++) {
-      const data = new Date(hoje.getFullYear(), i, 1);
-      datasMesesAtual.push(data);
-
-      const dataAnterior = new Date(data);
-      dataAnterior.setFullYear(dataAnterior.getFullYear() - 1);
-      datasMesesAnterior.push(dataAnterior);
-    }
-
-    return { datasSemanasAtual, datasSemanasAnterior, datasMesesAtual, datasMesesAnterior, hoje };
-  };
-
-  // Função para gerar dados mocados - Impressões
-  const gerarDadosMocadosImpressoes = (): WBRData => {
-    const { datasSemanasAtual, datasSemanasAnterior, datasMesesAtual, datasMesesAnterior, hoje } = gerarEstruturaBase();
-
-    const valoresSemanasCY: { [key: string]: number } = {};
-    const valoresSemanasAnterior: { [key: string]: number } = {};
-
-    datasSemanasAtual.forEach((data, i) => {
-      const baseValue = 15000 + Math.random() * 5000;
-      const crescimento = i * 800;
-      valoresSemanasCY[data.toISOString()] = Math.round(baseValue + crescimento);
-    });
-
-    datasSemanasAnterior.forEach((data, i) => {
-      const baseValue = 12000 + Math.random() * 4000;
-      valoresSemanasAnterior[data.toISOString()] = Math.round(baseValue);
-    });
-
-    const valoresMesesCY: { [key: string]: number } = {};
-    const valoresMesesAnterior: { [key: string]: number } = {};
-
-    datasMesesAtual.forEach((data, i) => {
-      if (i <= hoje.getMonth()) {
-        const baseValue = 60000 + Math.random() * 15000;
-        const crescimento = i * 3000;
-        valoresMesesCY[data.toISOString()] = Math.round(baseValue + crescimento);
-      }
-    });
-
-    datasMesesAnterior.forEach((data, i) => {
-      if (i <= hoje.getMonth()) {
-        const baseValue = 50000 + Math.random() * 12000;
-        valoresMesesAnterior[data.toISOString()] = Math.round(baseValue);
-      }
-    });
-
-    return {
-      semanas_cy: { metric_value: valoresSemanasCY, index: datasSemanasAtual },
-      semanas_py: { metric_value: valoresSemanasAnterior, index: datasSemanasAnterior },
-      meses_cy: { metric_value: valoresMesesCY, index: datasMesesAtual },
-      meses_py: { metric_value: valoresMesesAnterior, index: datasMesesAnterior },
-      ano_atual: hoje.getFullYear(),
-      ano_anterior: hoje.getFullYear() - 1,
-      semana_parcial: false,
-      mes_parcial_cy: true,
-      mes_parcial_py: false,
-    };
-  };
-
-  // Função para gerar dados mocados - Alcance
-  const gerarDadosMocadosAlcance = (): WBRData => {
-    const { datasSemanasAtual, datasSemanasAnterior, datasMesesAtual, datasMesesAnterior, hoje } = gerarEstruturaBase();
-
-    const valoresSemanasCY: { [key: string]: number } = {};
-    const valoresSemanasAnterior: { [key: string]: number } = {};
-
-    datasSemanasAtual.forEach((data, i) => {
-      const baseValue = 8500 + Math.random() * 2500;
-      const crescimento = i * 450;
-      valoresSemanasCY[data.toISOString()] = Math.round(baseValue + crescimento);
-    });
-
-    datasSemanasAnterior.forEach((data, i) => {
-      const baseValue = 7000 + Math.random() * 2000;
-      valoresSemanasAnterior[data.toISOString()] = Math.round(baseValue);
-    });
-
-    const valoresMesesCY: { [key: string]: number } = {};
-    const valoresMesesAnterior: { [key: string]: number } = {};
-
-    datasMesesAtual.forEach((data, i) => {
-      if (i <= hoje.getMonth()) {
-        const baseValue = 35000 + Math.random() * 8000;
-        const crescimento = i * 1800;
-        valoresMesesCY[data.toISOString()] = Math.round(baseValue + crescimento);
-      }
-    });
-
-    datasMesesAnterior.forEach((data, i) => {
-      if (i <= hoje.getMonth()) {
-        const baseValue = 28000 + Math.random() * 6000;
-        valoresMesesAnterior[data.toISOString()] = Math.round(baseValue);
-      }
-    });
-
-    return {
-      semanas_cy: { metric_value: valoresSemanasCY, index: datasSemanasAtual },
-      semanas_py: { metric_value: valoresSemanasAnterior, index: datasSemanasAnterior },
-      meses_cy: { metric_value: valoresMesesCY, index: datasMesesAtual },
-      meses_py: { metric_value: valoresMesesAnterior, index: datasMesesAnterior },
-      ano_atual: hoje.getFullYear(),
-      ano_anterior: hoje.getFullYear() - 1,
-      semana_parcial: false,
-      mes_parcial_cy: true,
-      mes_parcial_py: false,
-    };
-  };
-
-  // Função para gerar dados mocados - Engajamento Total
-  const gerarDadosMocadosEngajamento = (): WBRData => {
-    const { datasSemanasAtual, datasSemanasAnterior, datasMesesAtual, datasMesesAnterior, hoje } = gerarEstruturaBase();
-
-    const valoresSemanasCY: { [key: string]: number } = {};
-    const valoresSemanasAnterior: { [key: string]: number } = {};
-
-    datasSemanasAtual.forEach((data, i) => {
-      const baseValue = 3200 + Math.random() * 900;
-      const crescimento = i * 180;
-      valoresSemanasCY[data.toISOString()] = Math.round(baseValue + crescimento);
-    });
-
-    datasSemanasAnterior.forEach((data, i) => {
-      const baseValue = 2600 + Math.random() * 700;
-      valoresSemanasAnterior[data.toISOString()] = Math.round(baseValue);
-    });
-
-    const valoresMesesCY: { [key: string]: number } = {};
-    const valoresMesesAnterior: { [key: string]: number } = {};
-
-    datasMesesAtual.forEach((data, i) => {
-      if (i <= hoje.getMonth()) {
-        const baseValue = 13000 + Math.random() * 3500;
-        const crescimento = i * 750;
-        valoresMesesCY[data.toISOString()] = Math.round(baseValue + crescimento);
-      }
-    });
-
-    datasMesesAnterior.forEach((data, i) => {
-      if (i <= hoje.getMonth()) {
-        const baseValue = 10500 + Math.random() * 2800;
-        valoresMesesAnterior[data.toISOString()] = Math.round(baseValue);
-      }
-    });
-
-    return {
-      semanas_cy: { metric_value: valoresSemanasCY, index: datasSemanasAtual },
-      semanas_py: { metric_value: valoresSemanasAnterior, index: datasSemanasAnterior },
-      meses_cy: { metric_value: valoresMesesCY, index: datasMesesAtual },
-      meses_py: { metric_value: valoresMesesAnterior, index: datasMesesAnterior },
-      ano_atual: hoje.getFullYear(),
-      ano_anterior: hoje.getFullYear() - 1,
-      semana_parcial: false,
-      mes_parcial_cy: true,
-      mes_parcial_py: false,
-    };
-  };
-
-  // Função para gerar dados mocados - Compartilhamentos
-  const gerarDadosMocadosCompartilhamentos = (): WBRData => {
-    const { datasSemanasAtual, datasSemanasAnterior, datasMesesAtual, datasMesesAnterior, hoje } = gerarEstruturaBase();
-
-    const valoresSemanasCY: { [key: string]: number } = {};
-    const valoresSemanasAnterior: { [key: string]: number } = {};
-
-    datasSemanasAtual.forEach((data, i) => {
-      const baseValue = 120 + Math.random() * 40;
-      const crescimento = i * 8;
-      valoresSemanasCY[data.toISOString()] = Math.round(baseValue + crescimento);
-    });
-
-    datasSemanasAnterior.forEach((data, i) => {
-      const baseValue = 95 + Math.random() * 30;
-      valoresSemanasAnterior[data.toISOString()] = Math.round(baseValue);
-    });
-
-    const valoresMesesCY: { [key: string]: number } = {};
-    const valoresMesesAnterior: { [key: string]: number } = {};
-
-    datasMesesAtual.forEach((data, i) => {
-      if (i <= hoje.getMonth()) {
-        const baseValue = 500 + Math.random() * 150;
-        const crescimento = i * 35;
-        valoresMesesCY[data.toISOString()] = Math.round(baseValue + crescimento);
-      }
-    });
-
-    datasMesesAnterior.forEach((data, i) => {
-      if (i <= hoje.getMonth()) {
-        const baseValue = 400 + Math.random() * 120;
-        valoresMesesAnterior[data.toISOString()] = Math.round(baseValue);
-      }
-    });
-
-    return {
-      semanas_cy: { metric_value: valoresSemanasCY, index: datasSemanasAtual },
-      semanas_py: { metric_value: valoresSemanasAnterior, index: datasSemanasAnterior },
-      meses_cy: { metric_value: valoresMesesCY, index: datasMesesAtual },
-      meses_py: { metric_value: valoresMesesAnterior, index: datasMesesAnterior },
-      ano_atual: hoje.getFullYear(),
-      ano_anterior: hoje.getFullYear() - 1,
-      semana_parcial: false,
-      mes_parcial_cy: true,
-      mes_parcial_py: false,
-    };
-  };
-
-  // Função para gerar dados mocados - Salvamentos
-  const gerarDadosMocadosSalvamentos = (): WBRData => {
-    const { datasSemanasAtual, datasSemanasAnterior, datasMesesAtual, datasMesesAnterior, hoje } = gerarEstruturaBase();
-
-    const valoresSemanasCY: { [key: string]: number } = {};
-    const valoresSemanasAnterior: { [key: string]: number } = {};
-
-    datasSemanasAtual.forEach((data, i) => {
-      const baseValue = 450 + Math.random() * 120;
-      const crescimento = i * 30;
-      valoresSemanasCY[data.toISOString()] = Math.round(baseValue + crescimento);
-    });
-
-    datasSemanasAnterior.forEach((data, i) => {
-      const baseValue = 350 + Math.random() * 90;
-      valoresSemanasAnterior[data.toISOString()] = Math.round(baseValue);
-    });
-
-    const valoresMesesCY: { [key: string]: number } = {};
-    const valoresMesesAnterior: { [key: string]: number } = {};
-
-    datasMesesAtual.forEach((data, i) => {
-      if (i <= hoje.getMonth()) {
-        const baseValue = 1800 + Math.random() * 450;
-        const crescimento = i * 120;
-        valoresMesesCY[data.toISOString()] = Math.round(baseValue + crescimento);
-      }
-    });
-
-    datasMesesAnterior.forEach((data, i) => {
-      if (i <= hoje.getMonth()) {
-        const baseValue = 1400 + Math.random() * 350;
-        valoresMesesAnterior[data.toISOString()] = Math.round(baseValue);
-      }
-    });
-
-    return {
-      semanas_cy: { metric_value: valoresSemanasCY, index: datasSemanasAtual },
-      semanas_py: { metric_value: valoresSemanasAnterior, index: datasSemanasAnterior },
-      meses_cy: { metric_value: valoresMesesCY, index: datasMesesAtual },
-      meses_py: { metric_value: valoresMesesAnterior, index: datasMesesAnterior },
-      ano_atual: hoje.getFullYear(),
-      ano_anterior: hoje.getFullYear() - 1,
-      semana_parcial: false,
-      mes_parcial_cy: true,
-      mes_parcial_py: false,
-    };
-  };
-
-  // Função para gerar dados mocados - Posts Publicados
-  const gerarDadosMocadosPostsPublicados = (): WBRData => {
-    const { datasSemanasAtual, datasSemanasAnterior, datasMesesAtual, datasMesesAnterior, hoje } = gerarEstruturaBase();
-
-    const valoresSemanasCY: { [key: string]: number } = {};
-    const valoresSemanasAnterior: { [key: string]: number } = {};
-
-    datasSemanasAtual.forEach((data) => {
-      const baseValue = 5 + Math.random() * 3;
-      valoresSemanasCY[data.toISOString()] = Math.round(baseValue);
-    });
-
-    datasSemanasAnterior.forEach((data) => {
-      const baseValue = 4 + Math.random() * 2;
-      valoresSemanasAnterior[data.toISOString()] = Math.round(baseValue);
-    });
-
-    const valoresMesesCY: { [key: string]: number } = {};
-    const valoresMesesAnterior: { [key: string]: number } = {};
-
-    datasMesesAtual.forEach((data, i) => {
-      if (i <= hoje.getMonth()) {
-        const baseValue = 20 + Math.random() * 8;
-        valoresMesesCY[data.toISOString()] = Math.round(baseValue);
-      }
-    });
-
-    datasMesesAnterior.forEach((data, i) => {
-      if (i <= hoje.getMonth()) {
-        const baseValue = 18 + Math.random() * 6;
-        valoresMesesAnterior[data.toISOString()] = Math.round(baseValue);
-      }
-    });
-
-    return {
-      semanas_cy: { metric_value: valoresSemanasCY, index: datasSemanasAtual },
-      semanas_py: { metric_value: valoresSemanasAnterior, index: datasSemanasAnterior },
-      meses_cy: { metric_value: valoresMesesCY, index: datasMesesAtual },
-      meses_py: { metric_value: valoresMesesAnterior, index: datasMesesAnterior },
-      ano_atual: hoje.getFullYear(),
-      ano_anterior: hoje.getFullYear() - 1,
-      semana_parcial: false,
-      mes_parcial_cy: true,
-      mes_parcial_py: false,
-    };
-  };
-
-  const dadosImpressoes = gerarDadosMocadosImpressoes();
-  const dadosAlcance = gerarDadosMocadosAlcance();
-  const dadosEngajamento = gerarDadosMocadosEngajamento();
-  const dadosLikes = gerarDadosMocadosLikes();
-  const dadosComentarios = gerarDadosMocadosComentarios();
-  const dadosCompartilhamentos = gerarDadosMocadosCompartilhamentos();
-  const dadosSalvamentos = gerarDadosMocadosSalvamentos();
-  const dadosPostsPublicados = gerarDadosMocadosPostsPublicados();
-
-  // Dados mocados para Top 4 Postagens
-  const topPosts: TopPost[] = [
-    {
-      id: 1,
-      imageUrl: 'https://scontent-ord5-3.cdninstagram.com/v/t51.82787-15/565524004_18537990667021608_3386782723609994187_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=100&ccb=1-7&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=hHHFWLHIVRIQ7kNvwHONcg3&_nc_oc=Adnrrwkk6espZnGgvptR5W2jsi-jB0HXp71DDOGSaMufAxsJKLQDrMQCkHqFGtjfLx4&_nc_zt=23&_nc_ht=scontent-ord5-3.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=Gq8TaJ2iEtqF71yk2EZMYA&oh=00_AfdoMd9tbxKb0gmlp2kK7S-s3Ocv3xMJCnWgsaOmxQP6Qg&oe=68F67F74',
-      instagramUrl: 'https://www.instagram.com/reel/DP2eJX3EZOO/',
-      likes: 3542,
-      comments: 287,
-      shares: 156,
-      saves: 892,
-    },
-    {
-      id: 2,
-      imageUrl: 'https://scontent-ord5-1.cdninstagram.com/v/t51.71878-15/564716473_1524012242350709_4334273889102638946_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=111&ccb=1-7&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=zeXhMY96EvoQ7kNvwGM_gOf&_nc_oc=Adl0zPvPEEi1E9aJHiWmz42edAYW5kbjbVKrMVjjWIBWa4_Jv251rScG_PXywkRUdrI&_nc_zt=23&_nc_ht=scontent-ord5-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=Gq8TaJ2iEtqF71yk2EZMYA&oh=00_AfduAkxnxvrECu7NwDoWdXL0gaCTdlm45wA8aaKWsj4ATQ&oe=68F67DB4',
-      instagramUrl: 'https://www.instagram.com/reel/DP1RevyAPJF/',
-      likes: 3201,
-      comments: 245,
-      shares: 134,
-      saves: 756,
-    },
-    {
-      id: 3,
-      imageUrl: 'https://scontent-ord5-3.cdninstagram.com/v/t51.71878-15/564918418_692646816651594_7844173345319510618_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=109&ccb=1-7&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=9awI81BZKd0Q7kNvwHxk6pf&_nc_oc=AdlFmZ4B3kN79nBZaMTvrSSiScBhj8_8EpOL0eJ5T709mjAvgxeK9uVWGyjGw4KkBkY&_nc_zt=23&_nc_ht=scontent-ord5-3.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=W8UeWVttXnRWpMmtgsRPVw&oh=00_AfeAhjsZ719LRr_nFPbL_W0uKRDhcVRspIZ_N-K3Mnp2Ag&oe=68F50277',
-      instagramUrl: 'https://www.instagram.com/reel/DPzPxMCAQpe/',
-      likes: 2987,
-      comments: 213,
-      shares: 98,
-      saves: 634,
-    },
-    {
-      id: 4,
-      imageUrl: 'https://scontent-ord5-2.cdninstagram.com/v/t51.71878-15/564248386_1865078027774989_2053650634078763593_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=103&ccb=1-7&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_eui2=AeFL1IZKUi_uCUze1YAgnHQAqUZrZcR8QL2pRmtlxHxAvTosGMuhCfflaXpv4_AOq8o&_nc_ohc=cArYkUhEKXMQ7kNvwH6ZLcF&_nc_oc=AdmI_r8LOMfiuOQGiM9hCZvM9xwbgLm5OLpbi3gDI9eJDv8IRkvPGH8suYt05FG6vCM&_nc_zt=23&_nc_ht=scontent-ord5-2.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=uvHPE4Pa0gGkPIHle4bWEg&oh=00_AfeDJAWaMO0dk3y1Z6cSwPzGia7SZgKtRk6EojpQtDWzAw&oe=68F25A4B',
-      instagramUrl: 'https://www.instagram.com/reel/DPut1inkd_-/',
-      likes: 2756,
-      comments: 189,
-      shares: 87,
-      saves: 543,
-    },
-  ];
+  }, [kpis]);
 
   return (
     <div className="flex min-h-screen bg-background relative">
@@ -614,7 +166,7 @@ export function InstagramPanel() {
         <header className="flex flex-col items-center justify-center mb-6 text-center relative">
           <div className="absolute right-0 top-0 flex gap-2">
             <Button
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate('/operations')}
               variant="outline"
               className="flex items-center gap-2 hover:bg-primary hover:text-primary-foreground transition-all"
             >
@@ -629,10 +181,8 @@ export function InstagramPanel() {
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <rect width="7" height="9" x="3" y="3" rx="1" />
-                <rect width="7" height="5" x="14" y="3" rx="1" />
-                <rect width="7" height="9" x="14" y="12" rx="1" />
-                <rect width="7" height="5" x="3" y="16" rx="1" />
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                <polyline points="9 22 9 12 15 12 15 22" />
               </svg>
               Operações
             </Button>
@@ -660,343 +210,296 @@ export function InstagramPanel() {
             </Button>
           </div>
           <h1 className="text-3xl font-bold text-foreground">
-            Painel do Instagram
+            Instagram Analytics
           </h1>
           <p className="text-base text-muted-foreground mt-1">
             {filters.shopping
               ? `Shopping: ${filters.shopping}`
-              : 'Análise de performance do Instagram'}
+              : 'Análise de desempenho dos perfis do Instagram'}
           </p>
         </header>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 w-full">
-          {kpiData.map((kpi, index) => (
-            <Card
-              key={index}
-              className="transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
-            >
-              <CardContent className="p-6">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                  {kpi.title}
-                </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card className="transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+            <CardContent className="p-6">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                Total de Seguidores
+              </p>
+              {loadingKpis ? (
+                <div className="animate-pulse">
+                  <div className="h-9 bg-gray-200 rounded mb-2"></div>
+                </div>
+              ) : kpisError ? (
+                <p className="text-sm text-red-500">{kpisError}</p>
+              ) : (
                 <p className="text-3xl font-bold text-foreground mb-2">
-                  {kpi.value}
+                  {formattedKPIs.seguidores.toLocaleString()}
                 </p>
-                <p
-                  className={cn(
-                    'text-sm font-semibold',
-                    kpi.positive ? 'text-green-600' : 'text-red-600'
-                  )}
-                >
-                  {kpi.change}
+              )}
+            </CardContent>
+          </Card>
+          <Card className="transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+            <CardContent className="p-6">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                Engajamento Médio
+              </p>
+              {loadingKpis ? (
+                <div className="animate-pulse">
+                  <div className="h-9 bg-gray-200 rounded mb-2"></div>
+                </div>
+              ) : kpisError ? (
+                <p className="text-sm text-red-500">{kpisError}</p>
+              ) : (
+                <p className="text-3xl font-bold text-foreground mb-2">
+                  {formattedKPIs.engajamentoMedio.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </p>
-              </CardContent>
-            </Card>
-          ))}
+              )}
+            </CardContent>
+          </Card>
+          <Card className="transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+            <CardContent className="p-6">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                Alcance do Mês
+              </p>
+              {loadingKpis ? (
+                <div className="animate-pulse">
+                  <div className="h-9 bg-gray-200 rounded mb-2"></div>
+                </div>
+              ) : kpisError ? (
+                <p className="text-sm text-red-500">{kpisError}</p>
+              ) : (
+                <p className="text-3xl font-bold text-foreground mb-2">
+                  {formattedKPIs.alcance.toLocaleString()}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+          <Card className="transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+            <CardContent className="p-6">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                Taxa de Salvamento
+              </p>
+              {loadingKpis ? (
+                <div className="animate-pulse">
+                  <div className="h-9 bg-gray-200 rounded mb-2"></div>
+                </div>
+              ) : kpisError ? (
+                <p className="text-sm text-red-500">{kpisError}</p>
+              ) : (
+                <p className="text-3xl font-bold text-foreground mb-2">
+                  {formattedKPIs.taxaSalvamento.toFixed(1)}%
+                </p>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Top 4 Postagens do Mês */}
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle className="text-2xl text-center">Top 4 Postagens do Mês por Engajamento</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {topPosts.map((post) => (
-                <div
-                  key={post.id}
-                  className="flex flex-col gap-3 rounded-lg overflow-hidden border-2 border-border hover:border-primary transition-all duration-300 hover:shadow-lg"
-                >
-                  {/* Imagem do Post */}
-                  <a
-                    href={post.instagramUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="relative w-full h-[300px] bg-muted block group cursor-pointer"
-                  >
-                    <img
-                      src={post.imageUrl}
-                      alt={`Post ${post.id}`}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center">
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/90 rounded-full p-3">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="24"
-                          height="24"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="text-pink-600"
-                        >
-                          <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
-                          <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-                          <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
-                        </svg>
-                      </div>
-                    </div>
-                    <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-sm font-semibold">
-                      #{post.id}
-                    </div>
-                  </a>
+        {/* Barra de progresso fixa no topo (só aparece durante carregamento) */}
+        {loading && progress.total > 0 && (
+          <div className="fixed top-0 left-0 right-0 z-50 bg-white shadow-lg border-b">
+            <div className="h-1.5 bg-gray-200">
+              <div
+                className="h-1.5 bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-500 ease-out"
+                style={{ width: `${(progress.loaded / progress.total) * 100}%` }}
+              ></div>
+            </div>
+            <div className="px-4 py-3 text-sm text-muted-foreground text-center flex items-center justify-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+              <span>Carregando gráficos... {progress.loaded}/{progress.total} ({Math.round((progress.loaded / progress.total) * 100)}%)</span>
+            </div>
+          </div>
+        )}
 
-                  {/* Métricas do Post */}
-                  <div className="p-4 bg-secondary/50">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="flex flex-col items-center gap-1">
-                        <div className="flex items-center gap-1.5">
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="text-pink-600"
-                          >
-                            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
-                          </svg>
-                          <span className="text-xs text-muted-foreground font-medium">Likes</span>
-                        </div>
-                        <span className="text-lg font-bold text-pink-600">{post.likes.toLocaleString()}</span>
-                      </div>
-                      <div className="flex flex-col items-center gap-1">
-                        <div className="flex items-center gap-1.5">
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="text-blue-600"
-                          >
-                            <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
-                          </svg>
-                          <span className="text-xs text-muted-foreground font-medium">Coment.</span>
-                        </div>
-                        <span className="text-lg font-bold text-blue-600">{post.comments.toLocaleString()}</span>
-                      </div>
-                      <div className="flex flex-col items-center gap-1">
-                        <div className="flex items-center gap-1.5">
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="text-green-600"
-                          >
-                            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-                            <polyline points="16 6 12 2 8 6" />
-                            <line x1="12" x2="12" y1="2" y2="15" />
-                          </svg>
-                          <span className="text-xs text-muted-foreground font-medium">Compart.</span>
-                        </div>
-                        <span className="text-lg font-bold text-green-600">{post.shares.toLocaleString()}</span>
-                      </div>
-                      <div className="flex flex-col items-center gap-1">
-                        <div className="flex items-center gap-1.5">
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="text-purple-600"
-                          >
-                            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-                            <path d="m9 11 3 3L22 4" />
-                          </svg>
-                          <span className="text-xs text-muted-foreground font-medium">Salvos</span>
-                        </div>
-                        <span className="text-lg font-bold text-purple-600">{post.saves.toLocaleString()}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+        {/* Error State */}
+        {error && (
+          <Card className="w-full border-red-500">
+            <CardContent className="p-6">
+              <p className="text-red-600">Erro ao carregar dados: {error}</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Top 3 Posts Section - Pódio */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold mb-6">Top 3 Posts com Melhor Engajamento</h2>
+
+          {loadingPosts ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3].map((i) => (
+                <Card key={i} className="animate-pulse">
+                  <div className="aspect-square bg-gray-200"></div>
+                  <CardContent className="p-4">
+                    <div className="h-20 bg-gray-200 rounded"></div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
-          </CardContent>
-        </Card>
+          ) : postsError ? (
+            <Card className="border-red-500">
+              <CardContent className="p-6">
+                <p className="text-red-600">Erro ao carregar posts: {postsError}</p>
+              </CardContent>
+            </Card>
+          ) : topPosts.length === 0 ? (
+            <Card>
+              <CardContent className="p-6 text-center">
+                <p className="text-muted-foreground">Foto / Vídeo Expirada ou não houve Posts o suficiente</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {topPosts.map((post, index) => {
+                // Define as medalhas para cada posição
+                const medals = ['🥇', '🥈', '🥉'];
+                const medal = medals[index];
 
-        {/* 1. Gráfico WBR - Impressões */}
-        <Card className="w-full">
-          <CardContent className="p-6">
-            <WBRChart
-              data={dadosImpressoes}
-              titulo="Total de Impressões - WBR"
-              unidade="impressões"
-              dataReferencia={new Date()}
-              isRGM={false}
-            />
-          </CardContent>
-        </Card>
+                // Função para detectar se a imagem falhou ao carregar
+                const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+                  e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%23f0f0f0" width="400" height="400"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="18" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3EFoto Expirada%3C/text%3E%3C/svg%3E';
+                };
 
-        {/* 2. Gráfico WBR - Alcance */}
-        <Card className="w-full">
-          <CardContent className="p-6">
-            <WBRChart
-              data={dadosAlcance}
-              titulo="Alcance Total - WBR"
-              unidade="alcance"
-              dataReferencia={new Date()}
-              isRGM={false}
-            />
-          </CardContent>
-        </Card>
+                return (
+                  <Card
+                    key={index}
+                    className="group relative overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-2xl hover:-translate-y-2"
+                    onClick={() => window.open(post.link_insta, '_blank')}
+                  >
+                    {/* Medalha de Posição */}
+                    <div className="absolute top-3 right-3 z-10 bg-white/95 backdrop-blur-sm rounded-full w-12 h-12 flex items-center justify-center text-2xl shadow-lg border-2 border-primary/20">
+                      {medal}
+                    </div>
 
-        {/* 3. Gráfico WBR - Engajamento Total */}
-        <Card className="w-full">
-          <CardContent className="p-6">
-            <WBRChart
-              data={dadosEngajamento}
-              titulo="Engajamento Total - WBR"
-              unidade="engajamentos"
-              dataReferencia={new Date()}
-              isRGM={false}
-            />
-          </CardContent>
-        </Card>
+                    {/* Imagem do Post */}
+                    <div className="relative aspect-square overflow-hidden bg-muted">
+                      <img
+                        src={post.link_foto || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%23f0f0f0" width="400" height="400"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="18" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3ESem Imagem%3C/text%3E%3C/svg%3E'}
+                        alt="Post do Instagram"
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        onError={handleImageError}
+                      />
+                      {/* Overlay com Gradient */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    </div>
 
-        {/* 4. Gráfico WBR - Likes */}
-        <Card className="w-full">
-          <CardContent className="p-6">
-            <WBRChart
-              data={dadosLikes}
-              titulo="Total de Likes - WBR"
-              unidade="likes"
-              dataReferencia={new Date()}
-              isRGM={false}
-            />
-          </CardContent>
-        </Card>
+                    {/* Informações do Post */}
+                    <CardContent className="p-4 space-y-3">
+                      {/* KPIs em uma única linha */}
+                      <div className="grid grid-cols-4 gap-2 text-center">
+                        {/* Likes */}
+                        <div className="flex flex-col items-center gap-1">
+                          <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+                          </svg>
+                          <span className="text-xs font-semibold text-foreground">{(post.total_likes || 0).toLocaleString()}</span>
+                        </div>
 
-        {/* 5. Gráfico WBR - Comentários */}
-        <Card className="w-full">
-          <CardContent className="p-6">
-            <WBRChart
-              data={dadosComentarios}
-              titulo="Total de Comentários - WBR"
-              unidade="comentários"
-              dataReferencia={new Date()}
-              isRGM={false}
-            />
-          </CardContent>
-        </Card>
+                        {/* Comentários */}
+                        <div className="flex flex-col items-center gap-1">
+                          <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                          </svg>
+                          <span className="text-xs font-semibold text-foreground">{(post.total_comentarios || 0).toLocaleString()}</span>
+                        </div>
 
-        {/* 6. Gráfico WBR - Compartilhamentos */}
-        <Card className="w-full">
-          <CardContent className="p-6">
-            <WBRChart
-              data={dadosCompartilhamentos}
-              titulo="Total de Compartilhamentos - WBR"
-              unidade="compartilhamentos"
-              dataReferencia={new Date()}
-              isRGM={false}
-            />
-          </CardContent>
-        </Card>
+                        {/* Compartilhamentos */}
+                        <div className="flex flex-col items-center gap-1">
+                          <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                          </svg>
+                          <span className="text-xs font-semibold text-foreground">{(post.total_compartilhamentos || 0).toLocaleString()}</span>
+                        </div>
 
-        {/* 7. Gráfico WBR - Salvamentos */}
-        <Card className="w-full">
-          <CardContent className="p-6">
-            <WBRChart
-              data={dadosSalvamentos}
-              titulo="Total de Salvamentos - WBR"
-              unidade="salvamentos"
-              dataReferencia={new Date()}
-              isRGM={false}
-            />
-          </CardContent>
-        </Card>
+                        {/* Salvamentos */}
+                        <div className="flex flex-col items-center gap-1">
+                          <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                          </svg>
+                          <span className="text-xs font-semibold text-foreground">{(post.total_salvos || 0).toLocaleString()}</span>
+                        </div>
+                      </div>
 
-        {/* 8. Gráfico WBR - Posts Publicados */}
-        <Card className="w-full">
-          <CardContent className="p-6">
-            <WBRChart
-              data={dadosPostsPublicados}
-              titulo="Posts Publicados - WBR"
-              unidade="posts"
-              dataReferencia={new Date()}
-              isRGM={false}
-            />
-          </CardContent>
-        </Card>
-
-        {/* Charts Grid - Outros Gráficos */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
-          <Card>
-            <CardHeader>
-              <CardTitle>Horários de Maior Engajamento</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-center h-64 bg-muted rounded-md">
-                <p className="text-sm text-muted-foreground italic">
-                  Gráfico em desenvolvimento
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Tipo de Conteúdo Mais Popular</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-center h-64 bg-muted rounded-md">
-                <p className="text-sm text-muted-foreground italic">
-                  Gráfico em desenvolvimento
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Crescimento de Seguidores</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-center h-64 bg-muted rounded-md">
-                <p className="text-sm text-muted-foreground italic">
-                  Gráfico em desenvolvimento
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Taxa de Resposta a DMs</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-center h-64 bg-muted rounded-md">
-                <p className="text-sm text-muted-foreground italic">
-                  Gráfico em desenvolvimento
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+                      {/* Engajamento Total */}
+                      <div className="pt-3 border-t">
+                        <div className="text-center">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                            Engajamento Total
+                          </p>
+                          <p className="text-2xl font-bold text-primary">
+                            {(post.engajamento_total || 0).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </div>
+
+        {/* Gráficos WBR - Renderizados dinamicamente com loading individual */}
+        {pageData && (
+          <div className="space-y-6 w-full">
+            {Object.entries(pageData).map(([graficoId, graficoData]) => {
+              // Verifica se ainda está carregando este gráfico
+              if (loadingGraficos[graficoId]) {
+                return (
+                  <Card key={graficoId} className="w-full">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-center h-64">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              }
+
+              // Verifica se houve erro
+              if (isWBRError(graficoData)) {
+                return (
+                  <Card key={graficoId} className="w-full border-red-500">
+                    <CardContent className="p-6">
+                      <p className="text-red-600">
+                        Erro ao carregar gráfico {graficoId}: {graficoData.error}
+                      </p>
+                    </CardContent>
+                  </Card>
+                );
+              }
+
+              // Renderiza o gráfico se dados válidos
+              if (isWBRData(graficoData)) {
+                // Mapeia os IDs dos gráficos para títulos e unidades
+                const chartConfig: Record<string, { titulo: string; unidade: string }> = {
+                  instagram_likes: { titulo: 'Instagram - Likes', unidade: 'Likes' },
+                  instagram_alcance: { titulo: 'Instagram - Alcance', unidade: 'Alcance' },
+                  instagram_impressoes: { titulo: 'Instagram - Impressões', unidade: 'Impressões' },
+                  instagram_engajamento: { titulo: 'Instagram - Engajamento Total', unidade: 'Engajamento' },
+                  instagram_posts: { titulo: 'Instagram - Total de Posts', unidade: 'Posts' },
+                };
+
+                const config = chartConfig[graficoId] || { titulo: graficoId, unidade: '' };
+
+                return (
+                  <Card key={graficoId} className="w-full">
+                    <CardContent className="p-6">
+                      <WBRChart
+                        data={graficoData}
+                        titulo={config.titulo}
+                        unidade={config.unidade}
+                        dataReferencia={new Date()}
+                        isRGM={false}
+                      />
+                    </CardContent>
+                  </Card>
+                );
+              }
+
+              return null;
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

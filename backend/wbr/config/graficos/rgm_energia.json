@@ -1,0 +1,13 @@
+{
+  "grafico_id": "rgm_energia",
+  "titulo": "RGM - Energia",
+  "tabela": "\"mapa_do_bosque\".\"Rgm_energia\"",
+  "colunas": {
+    "data": "data",
+    "valor": "valor"
+  },
+  "unidade": "R$",
+  "is_rgm": true,
+  "agrupamento": "mensal",
+  "filtros": {}
+}

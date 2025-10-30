@@ -1,0 +1,13 @@
+{
+  "grafico_id": "rgm_fundo_de_promocao",
+  "titulo": "RGM - Fundo de Promoção",
+  "tabela": "\"mapa_do_bosque\".\"Rgm_fundo_de_promocao\"",
+  "colunas": {
+    "data": "data",
+    "valor": "valor"
+  },
+  "unidade": "R$",
+  "is_rgm": true,
+  "agrupamento": "mensal",
+  "filtros": {}
+}

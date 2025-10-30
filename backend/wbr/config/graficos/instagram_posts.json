@@ -1,0 +1,11 @@
+{
+  "grafico_id": "instagram_posts",
+  "titulo": "Posts Publicados",
+  "unidade": "posts",
+  "coluna_data": "data",
+  "coluna_valor": "total_posts",
+  "tipo_grafico": "line",
+  "use_instagram_template": true,
+  "mostrar_variacao": true,
+  "is_rgm": false
+}

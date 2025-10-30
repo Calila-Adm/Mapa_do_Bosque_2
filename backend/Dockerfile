@@ -30,7 +30,8 @@ RUN pip install --upgrade pip && \
     django-cors-headers>=4.9.0 \
     django-filter>=25.2 \
     dj-database-url>=3.0.1 \
-    psycopg2-binary>=2.9.11
+    psycopg2-binary>=2.9.11 \
+    redis>=5.0.0
 
 # Copy project files
 COPY . .

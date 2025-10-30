@@ -1,0 +1,14 @@
+{
+  "grafico_id": "instagram_engajamento",
+  "titulo": "Instagram - Engajamento Total",
+  "tabela": "instagram_aggregated",
+  "colunas": {
+    "data": "data",
+    "valor": "engajamento_total"
+  },
+  "unidade": "Engajamento",
+  "is_rgm": false,
+  "agrupamento": "semanal",
+  "filtros": {},
+  "use_instagram_template": true
+}

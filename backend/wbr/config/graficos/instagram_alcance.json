@@ -1,0 +1,11 @@
+{
+  "grafico_id": "instagram_alcance",
+  "titulo": "Alcance",
+  "unidade": "pessoas alcançadas",
+  "coluna_data": "data",
+  "coluna_valor": "total_alcance",
+  "tipo_grafico": "line",
+  "use_instagram_template": true,
+  "mostrar_variacao": true,
+  "is_rgm": false
+}

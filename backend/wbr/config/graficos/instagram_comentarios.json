@@ -1,0 +1,11 @@
+{
+  "grafico_id": "instagram_comentarios",
+  "titulo": "Comentários",
+  "unidade": "comentários",
+  "coluna_data": "data",
+  "coluna_valor": "total_comentarios",
+  "tipo_grafico": "line",
+  "use_instagram_template": true,
+  "mostrar_variacao": true,
+  "is_rgm": false
+}

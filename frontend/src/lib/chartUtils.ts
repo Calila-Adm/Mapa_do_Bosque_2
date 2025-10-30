@@ -81,6 +81,18 @@ export const gerarLabelsSemanas = (datas: Date[]): string[] => {
 };
 
 /**
+ * Gera labels no formato DD/MM para semanas móveis
+ */
+export const gerarLabelsDDMM = (datas: Date[]): string[] => {
+  return datas.map((data) => {
+    const d = new Date(data);
+    const dia = String(d.getUTCDate()).padStart(2, '0');
+    const mes = String(d.getUTCMonth() + 1).padStart(2, '0');
+    return `${dia}/${mes}`;
+  });
+};
+
+/**
  * Gera labels de meses (JAN, FEV, etc.)
  */
 export const gerarLabelsMeses = (datas: Date[]): string[] => {

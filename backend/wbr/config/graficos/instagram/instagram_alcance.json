@@ -1,0 +1,14 @@
+{
+  "grafico_id": "instagram_alcance",
+  "titulo": "Instagram - Alcance",
+  "tabela": "instagram_aggregated",
+  "colunas": {
+    "data": "data",
+    "valor": "total_alcance"
+  },
+  "unidade": "Alcance",
+  "is_rgm": false,
+  "agrupamento": "semanal",
+  "filtros": {},
+  "use_instagram_template": true
+}

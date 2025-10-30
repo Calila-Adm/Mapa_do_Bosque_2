@@ -1,0 +1,13 @@
+{
+  "grafico_id": "rgm_multa_contratual",
+  "titulo": "RGM - Multa Contratual",
+  "tabela": "\"mapa_do_bosque\".\"Rgm_multa_contratual\"",
+  "colunas": {
+    "data": "data",
+    "valor": "valor"
+  },
+  "unidade": "R$",
+  "is_rgm": true,
+  "agrupamento": "mensal",
+  "filtros": {}
+}

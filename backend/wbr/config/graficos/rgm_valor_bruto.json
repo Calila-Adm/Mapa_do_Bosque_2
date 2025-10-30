@@ -1,0 +1,13 @@
+{
+  "grafico_id": "rgm_valor_bruto",
+  "titulo": "RGM - Valor Bruto",
+  "tabela": "\"mapa_do_bosque\".\"Rgm_valor_bruto\"",
+  "colunas": {
+    "data": "data",
+    "valor": "valor"
+  },
+  "unidade": "R$",
+  "is_rgm": true,
+  "agrupamento": "mensal",
+  "filtros": {}
+}

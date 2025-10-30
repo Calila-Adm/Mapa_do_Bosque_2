@@ -1,0 +1,11 @@
+{
+  "grafico_id": "instagram_engajamento",
+  "titulo": "Engajamento",
+  "unidade": "interações",
+  "coluna_data": "data",
+  "coluna_valor": "engajamento_total",
+  "tipo_grafico": "line",
+  "use_instagram_template": true,
+  "mostrar_variacao": true,
+  "is_rgm": false
+}

@@ -1,0 +1,13 @@
+{
+  "grafico_id": "rgm_taxa_transferencia",
+  "titulo": "RGM - Taxa Transferência",
+  "tabela": "\"mapa_do_bosque\".\"Rgm_taxa_transferencia\"",
+  "colunas": {
+    "data": "data",
+    "valor": "valor"
+  },
+  "unidade": "R$",
+  "is_rgm": true,
+  "agrupamento": "mensal",
+  "filtros": {}
+}

@@ -1,0 +1,11 @@
+{
+  "grafico_id": "instagram_salvamentos",
+  "titulo": "Salvamentos",
+  "unidade": "salvamentos",
+  "coluna_data": "data",
+  "coluna_valor": "total_salvos",
+  "tipo_grafico": "line",
+  "use_instagram_template": true,
+  "mostrar_variacao": true,
+  "is_rgm": false
+}

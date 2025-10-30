@@ -1,0 +1,13 @@
+{
+  "grafico_id": "rgm_area",
+  "titulo": "RGM - Área",
+  "tabela": "\"mapa_do_bosque\".\"Rgm_area\"",
+  "colunas": {
+    "data": "data",
+    "valor": "valor"
+  },
+  "unidade": "m²",
+  "is_rgm": true,
+  "agrupamento": "mensal",
+  "filtros": {}
+}

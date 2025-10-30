@@ -1,0 +1,11 @@
+{
+  "grafico_id": "instagram_likes",
+  "titulo": "Likes",
+  "unidade": "curtidas",
+  "coluna_data": "data",
+  "coluna_valor": "total_likes",
+  "tipo_grafico": "line",
+  "use_instagram_template": true,
+  "mostrar_variacao": true,
+  "is_rgm": false
+}

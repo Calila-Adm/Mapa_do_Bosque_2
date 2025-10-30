@@ -1,16 +1,18 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import FilterSidebar, { type FilterValues } from '../components/features/FilterSidebar';
 import { WBRChart } from '@/components/features/WBRChart';
-import type { WBRData } from '@/types/wbr.types';
+import { useWBRPage } from '@/hooks/useWBRPage';
+import { isWBRData, isWBRError } from '@/services/wbrApi';
+import type { UserFilters } from '@/services/wbrApi';
 
 export function OperationsPanel() {
   const navigate = useNavigate();
-  const { logout, user } = useAuth();
+  const { logout } = useAuth();
   const [filters, setFilters] = useState<FilterValues>({
     date: '',
     shopping: '',
@@ -20,10 +22,27 @@ export function OperationsPanel() {
   });
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
+  // Converte FilterValues para UserFilters (formato da API)
+  // Remove valores vazios para não enviar undefined na URL
+  const apiFilters = useMemo<UserFilters | undefined>(() => {
+    const result: UserFilters = {};
+
+    if (filters.date) result.data_referencia = filters.date;
+    if (filters.shopping) result.shopping = filters.shopping;
+    if (filters.ramo) result.ramo = filters.ramo;
+    if (filters.categoria) result.categoria = filters.categoria;
+    if (filters.loja) result.loja = filters.loja;
+
+    // Retorna undefined se não houver filtros
+    return Object.keys(result).length > 0 ? result : undefined;
+  }, [filters]);
+
+  // Hook que carrega os dados com os filtros aplicados
+  const { data: pageData, loading, error, loadingGraficos, progress } = useWBRPage('dashboard_vendas', apiFilters);
+
   const handleFilterChange = (newFilters: FilterValues) => {
     setFilters(newFilters);
     console.log('Filtros atualizados:', newFilters);
-    // Aqui futuramente você vai chamar a API com os filtros
   };
 
   const handleSidebarToggle = () => {
@@ -38,107 +57,6 @@ export function OperationsPanel() {
       console.error('Erro ao fazer logout:', error);
     }
   };
-
-  // Dados mocados para os KPIs
-  const kpiData = [
-    { title: 'Vendas Totais', value: 'R$ 1.234.567', change: '+12.5%', positive: true },
-    { title: 'Ticket Médio', value: 'R$ 287,50', change: '+5.2%', positive: true },
-    { title: 'Lojas Ativas', value: '156', change: '+3', positive: true },
-    { title: 'Taxa de Conversão', value: '68%', change: '-2.1%', positive: false },
-  ];
-
-  // Função para gerar dados mocados do WBR
-  const gerarDadosMocadosWBR = (): WBRData => {
-    // Gerar datas para semanas (últimas 8 semanas)
-    const datasSemanasAtual: Date[] = [];
-    const datasSemanasAnterior: Date[] = [];
-    const hoje = new Date();
-
-    for (let i = 7; i >= 0; i--) {
-      const data = new Date(hoje);
-      data.setDate(data.getDate() - (i * 7));
-      datasSemanasAtual.push(data);
-
-      // Ano anterior
-      const dataAnterior = new Date(data);
-      dataAnterior.setFullYear(dataAnterior.getFullYear() - 1);
-      datasSemanasAnterior.push(dataAnterior);
-    }
-
-    // Gerar datas para meses (12 meses)
-    const datasMesesAtual: Date[] = [];
-    const datasMesesAnterior: Date[] = [];
-
-    for (let i = 0; i < 12; i++) {
-      const data = new Date(hoje.getFullYear(), i, 1);
-      datasMesesAtual.push(data);
-
-      const dataAnterior = new Date(data);
-      dataAnterior.setFullYear(dataAnterior.getFullYear() - 1);
-      datasMesesAnterior.push(dataAnterior);
-    }
-
-    // Gerar valores mocados para semanas (com tendência de crescimento)
-    const valoresSemanasCY: { [key: string]: number } = {};
-    const valoresSemanasAnterior: { [key: string]: number } = {};
-
-    datasSemanasAtual.forEach((data, i) => {
-      const baseValue = 45000 + Math.random() * 15000;
-      const crescimento = i * 2000; // Tendência de crescimento
-      valoresSemanasCY[data.toISOString()] = Math.round(baseValue + crescimento);
-    });
-
-    datasSemanasAnterior.forEach((data, i) => {
-      const baseValue = 38000 + Math.random() * 12000;
-      valoresSemanasAnterior[data.toISOString()] = Math.round(baseValue);
-    });
-
-    // Gerar valores mocados para meses
-    const valoresMesesCY: { [key: string]: number } = {};
-    const valoresMesesAnterior: { [key: string]: number } = {};
-
-    datasMesesAtual.forEach((data, i) => {
-      // Apenas até o mês atual
-      if (i <= hoje.getMonth()) {
-        const baseValue = 180000 + Math.random() * 50000;
-        const crescimento = i * 8000;
-        valoresMesesCY[data.toISOString()] = Math.round(baseValue + crescimento);
-      }
-    });
-
-    datasMesesAnterior.forEach((data, i) => {
-      if (i <= hoje.getMonth()) {
-        const baseValue = 160000 + Math.random() * 40000;
-        valoresMesesAnterior[data.toISOString()] = Math.round(baseValue);
-      }
-    });
-
-    return {
-      semanas_cy: {
-        metric_value: valoresSemanasCY,
-        index: datasSemanasAtual,
-      },
-      semanas_py: {
-        metric_value: valoresSemanasAnterior,
-        index: datasSemanasAnterior,
-      },
-      meses_cy: {
-        metric_value: valoresMesesCY,
-        index: datasMesesAtual,
-      },
-      meses_py: {
-        metric_value: valoresMesesAnterior,
-        index: datasMesesAnterior,
-      },
-      ano_atual: hoje.getFullYear(),
-      ano_anterior: hoje.getFullYear() - 1,
-      semana_parcial: false,
-      mes_parcial_cy: true, // Mês atual está parcial
-      mes_parcial_py: false,
-    };
-  };
-
-  const dadosWBR = gerarDadosMocadosWBR();
 
   return (
     <div className="flex min-h-screen bg-background relative">
@@ -212,100 +130,94 @@ export function OperationsPanel() {
           </p>
         </header>
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 w-full">
-          {kpiData.map((kpi, index) => (
-            <Card
-              key={index}
-              className="transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
-            >
-              <CardContent className="p-6">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                  {kpi.title}
-                </p>
-                <p className="text-3xl font-bold text-foreground mb-2">
-                  {kpi.value}
-                </p>
-                <p
-                  className={cn(
-                    'text-sm font-semibold',
-                    kpi.positive ? 'text-green-600' : 'text-red-600'
-                  )}
-                >
-                  {kpi.change}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        {/* Barra de progresso fixa no topo (só aparece durante carregamento) */}
+        {loading && progress.total > 0 && (
+          <div className="fixed top-0 left-0 right-0 z-50 bg-white shadow-lg border-b">
+            <div className="h-1.5 bg-gray-200">
+              <div
+                className="h-1.5 bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-500 ease-out"
+                style={{ width: `${(progress.loaded / progress.total) * 100}%` }}
+              ></div>
+            </div>
+            <div className="px-4 py-3 text-sm text-muted-foreground text-center flex items-center justify-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+              <span>Carregando gráficos... {progress.loaded}/{progress.total} ({Math.round((progress.loaded / progress.total) * 100)}%)</span>
+            </div>
+          </div>
+        )}
 
-        {/* Gráfico WBR - Full Width */}
-        <Card className="w-full">
-          <CardContent className="p-6">
-            <WBRChart
-              data={dadosWBR}
-              titulo="Vendas Totais - WBR"
-              unidade="R$"
-              dataReferencia={new Date()}
-              isRGM={false}
-            />
-          </CardContent>
-        </Card>
-
-        {/* Charts Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
-          <Card>
-            <CardHeader>
-              <CardTitle>Distribuição por Shopping</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-center h-64 bg-muted rounded-md">
-                <p className="text-sm text-muted-foreground italic">
-                  Gráfico em desenvolvimento
-                </p>
-              </div>
+        {/* Error State */}
+        {error && (
+          <Card className="w-full border-red-500">
+            <CardContent className="p-6">
+              <p className="text-red-600">Erro ao carregar dados: {error}</p>
             </CardContent>
           </Card>
+        )}
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Top 10 Lojas</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-center h-64 bg-muted rounded-md">
-                <p className="text-sm text-muted-foreground italic">
-                  Gráfico em desenvolvimento
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Gráficos WBR - Renderizados dinamicamente com loading individual */}
+        {pageData && (
+          <div className="space-y-6 w-full">
+            {Object.entries(pageData).map(([graficoId, graficoData]) => {
+              // Verifica se ainda está carregando este gráfico
+              if (loadingGraficos[graficoId]) {
+                return (
+                  <Card key={graficoId} className="w-full">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-center h-64">
+                        <div className="flex flex-col items-center gap-3">
+                          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+                          <p className="text-muted-foreground">Carregando {graficoId}...</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              }
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Performance por Categoria</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-center h-64 bg-muted rounded-md">
-                <p className="text-sm text-muted-foreground italic">
-                  Gráfico em desenvolvimento
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+              // Verifica se é um erro ou dados válidos
+              if (isWBRError(graficoData)) {
+                // Renderiza card de erro para este gráfico específico
+                return (
+                  <Card key={graficoId} className="w-full border-yellow-500">
+                    <CardContent className="p-6">
+                      <div className="text-yellow-600">
+                        <p className="font-semibold">Erro ao carregar gráfico: {graficoId}</p>
+                        <p className="text-sm mt-2">{graficoData.error}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              }
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Ticket Médio por Período</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-center h-64 bg-muted rounded-md">
-                <p className="text-sm text-muted-foreground italic">
-                  Gráfico em desenvolvimento
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              // Se é um dado válido WBR, renderiza o gráfico
+              if (isWBRData(graficoData)) {
+                // Por enquanto, vamos usar o ID do gráfico como título
+                // Isso será melhorado quando o backend enviar as configurações
+                const titulo = graficoId
+                  .replace(/_/g, ' ')
+                  .replace(/\b\w/g, l => l.toUpperCase());
+
+                return (
+                  <Card key={graficoId} className="w-full">
+                    <CardContent className="p-6">
+                      <WBRChart
+                        data={graficoData}
+                        titulo={titulo}
+                        unidade="R$" // Valor padrão, será melhorado com config do backend
+                        dataReferencia={new Date()}
+                        isRGM={graficoId.includes('rgm')} // Detecta se é RGM pelo ID
+                      />
+                    </CardContent>
+                  </Card>
+                );
+              }
+
+              // Se não é nem erro nem dados válidos, ignora
+              return null;
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

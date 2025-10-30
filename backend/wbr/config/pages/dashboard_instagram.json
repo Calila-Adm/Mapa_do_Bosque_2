@@ -1,0 +1,14 @@
+{
+  "page_id": "dashboard_instagram",
+  "titulo": "Dashboard Instagram",
+  "graficos": [
+    "instagram_impressoes",
+    "instagram_alcance",
+    "instagram_engajamento",
+    "instagram_likes",
+    "instagram_comentarios",
+    "instagram_compartilhamentos",
+    "instagram_salvamentos",
+    "instagram_posts"
+  ]
+}
