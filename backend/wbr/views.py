@@ -95,11 +95,6 @@ class WBRSingleView(View):
                     else:
                         user_filters['chave'] = chaves
 
-            # Debug: Log dos filtros aplicados
-            print(f"[WBRSingleView] Gráfico: {grafico_id}")
-            print(f"[WBRSingleView] user_filters: {user_filters}")
-            print(f"[WBRSingleView] data_referencia: {data_referencia}")
-
             resultado = service.generate(
                 grafico_id,
                 user_filters=user_filters if user_filters else None,
@@ -122,10 +117,6 @@ class WBRSingleView(View):
             }, status=500)
 
         except Exception as e:
-            # Log de erro inesperado
-            print(f"[WBR] Erro inesperado em WBRSingleView: {str(e)}")
-            print(traceback.format_exc())
-
             return JsonResponse({
                 'error': f'Erro inesperado: {str(e)}',
                 'error_type': type(e).__name__
@@ -168,9 +159,6 @@ class WBRPageConfigView(View):
             }, status=404)
 
         except Exception as e:
-            print(f"[WBR] Erro inesperado em WBRPageConfigView: {str(e)}")
-            print(traceback.format_exc())
-
             return JsonResponse({
                 'error': f'Erro ao carregar configuração da página: {str(e)}',
                 'error_type': type(e).__name__
@@ -272,8 +260,6 @@ class WBRPageView(View):
             response = {}
             for grafico_id in grafico_ids:
                 try:
-                    print(f"[WBR] Processando gráfico '{grafico_id}'...")
-
                     # Combina filtros base + filtros RGM se for gráfico RGM
                     filters_to_apply = {**user_filters}
                     if 'rgm' in grafico_id.lower():
@@ -284,9 +270,7 @@ class WBRPageView(View):
                         user_filters=filters_to_apply if filters_to_apply else None,
                         data_referencia=data_referencia
                     )
-                    print(f"[WBR] ✓ Gráfico '{grafico_id}' gerado com sucesso")
                 except ConfigNotFoundException as e:
-                    print(f"[WBR] ✗ Erro de config no gráfico '{grafico_id}': {e.message}")
                     response[grafico_id] = {
                         'error': e.message,
                         'details': e.details,
@@ -294,7 +278,6 @@ class WBRPageView(View):
                         'error_type': 'ConfigNotFoundException'
                     }
                 except WBRException as e:
-                    print(f"[WBR] ✗ Erro WBR no gráfico '{grafico_id}': {e.message}")
                     response[grafico_id] = {
                         'error': e.message,
                         'details': e.details,
@@ -302,8 +285,6 @@ class WBRPageView(View):
                         'error_type': type(e).__name__
                     }
                 except Exception as e:
-                    print(f"[WBR] ✗ Erro inesperado no gráfico '{grafico_id}': {str(e)}")
-                    print(traceback.format_exc())
                     response[grafico_id] = {
                         'error': str(e),
                         'status': 'failed',
@@ -319,9 +300,6 @@ class WBRPageView(View):
             }, status=404)
 
         except Exception as e:
-            print(f"[WBR] Erro inesperado em WBRPageView: {str(e)}")
-            print(traceback.format_exc())
-
             return JsonResponse({
                 'error': f'Erro ao carregar página: {str(e)}',
                 'error_type': type(e).__name__
@@ -418,9 +396,6 @@ class FilterOptionsView(View):
             }, safe=False)
 
         except Exception as e:
-            print(f"[WBR] Erro ao buscar opções de filtros: {str(e)}")
-            print(traceback.format_exc())
-
             return JsonResponse({
                 'error': f'Erro ao buscar opções de filtros: {str(e)}',
                 'error_type': type(e).__name__
@@ -505,9 +480,6 @@ class FilteredOptionsView(View):
             }, safe=False)
 
         except Exception as e:
-            print(f"[WBR] Erro ao buscar opções filtradas: {str(e)}")
-            print(traceback.format_exc())
-
             return JsonResponse({
                 'error': f'Erro ao buscar opções filtradas: {str(e)}',
                 'error_type': type(e).__name__
@@ -555,9 +527,6 @@ class AvailableDatesView(View):
             })
 
         except Exception as e:
-            print(f"[WBR] Erro ao buscar datas disponíveis: {str(e)}")
-            print(traceback.format_exc())
-
             return JsonResponse({
                 'error': f'Erro ao buscar datas disponíveis: {str(e)}',
                 'error_type': type(e).__name__
@@ -593,38 +562,53 @@ class InstagramKPIsView(View):
                 }, status=400)
 
             # Query para seguidores (UserInsight)
+            # Busca follower_demographics que contém a quantidade total de seguidores
+            # O campo value contém um objeto JSON com os dados demográficos
             seguidores_query = f"""
-                SELECT
-                  *
-                FROM
-                  (
+                WITH all_data AS (
                   SELECT
                     'SCIB' as shopping,
                     "startTime"::date AS DATA,
                     "metricName"::text AS METRICA,
                     "value"
                   FROM "instagram-data-fetch-scib"."UserInsight"
-                  WHERE 1 = 1
+                  WHERE "metricName"::text = 'follower_demographics'
+                    AND "startTime"::date <= '{data_referencia}'::date
+
                   UNION ALL
+
                   SELECT
                     'SBI' as shopping,
                     "startTime"::date AS DATA,
                     "metricName"::text AS METRICA,
                     "value"
                   FROM "instagram-data-fetch-sbi"."UserInsight"
-                  WHERE 1 = 1
+                  WHERE "metricName"::text = 'follower_demographics'
+                    AND "startTime"::date <= '{data_referencia}'::date
+
                   UNION ALL
+
                   SELECT
                     'SBGP' as shopping,
                     "startTime"::date AS DATA,
                     "metricName"::text AS METRICA,
                     "value"
                   FROM "instagram-data-fetch-sbgp"."UserInsight"
-                  WHERE 1 = 1
-                  ) AS ALL_DATA
-                WHERE 1 = 1
-                  AND METRICA IN ('follower_demographics','follows_and_unfollows')
-                  AND DATA = '{data_referencia}'
+                  WHERE "metricName"::text = 'follower_demographics'
+                    AND "startTime"::date <= '{data_referencia}'::date
+                ),
+                latest_per_shopping AS (
+                  SELECT
+                    shopping,
+                    DATA,
+                    METRICA,
+                    value,
+                    ROW_NUMBER() OVER (PARTITION BY shopping ORDER BY DATA DESC) as rn
+                  FROM all_data
+                )
+                SELECT shopping, DATA, METRICA, value
+                FROM latest_per_shopping
+                WHERE rn = 1
                   {f"AND shopping = '{shopping}'" if shopping else ""}
                 ORDER BY DATA DESC
             """
@@ -640,7 +624,7 @@ class InstagramKPIsView(View):
 
             # Query para engajamento e alcance (PostInsight)
             # Busca dados do dia específico para alcance/impressões
-            # E calcula engajamento médio do mês
+            # E calcula engajamento total acumulado do início do mês até a data selecionada
             engagement_query = f"""
                 WITH daily_data AS (
                       SELECT
@@ -692,37 +676,80 @@ class InstagramKPIsView(View):
                       WHERE DATE(p."postedAt") = '{data_referencia}'
                       GROUP BY DATE(p."postedAt")
                   ),
-                  monthly_engagement AS (
+                  month_to_date_engagement AS (
+                      -- Engajamento acumulado do dia 1 do mês até a data selecionada
                       SELECT
                           'SCIB' as shopping,
                           SUM(COALESCE(i.likes, 0) + COALESCE(i.comments, 0) +
-                              COALESCE(i.shares, 0) + COALESCE(i.saved, 0)) as engajamento_total_mes
+                              COALESCE(i.shares, 0) + COALESCE(i.saved, 0)) as engajamento_total_acumulado,
+                          COUNT(DISTINCT DATE(p."postedAt")) as dias_com_posts
                       FROM "instagram-data-fetch-scib"."Post" p
                       LEFT JOIN "instagram-data-fetch-scib"."PostInsight" i ON p.id = i."postId"
                       WHERE EXTRACT(YEAR FROM p."postedAt") = {ano}
                         AND EXTRACT(MONTH FROM p."postedAt") = {mes}
+                        AND DATE(p."postedAt") <= '{data_referencia}'
 
                       UNION ALL
 
                       SELECT
                           'SBGP' as shopping,
                           SUM(COALESCE(i.likes, 0) + COALESCE(i.comments, 0) +
-                              COALESCE(i.shares, 0) + COALESCE(i.saved, 0)) as engajamento_total_mes
+                              COALESCE(i.shares, 0) + COALESCE(i.saved, 0)) as engajamento_total_acumulado,
+                          COUNT(DISTINCT DATE(p."postedAt")) as dias_com_posts
                       FROM "instagram-data-fetch-sbgp"."Post" p
                       LEFT JOIN "instagram-data-fetch-sbgp"."PostInsight" i ON p.id = i."postId"
                       WHERE EXTRACT(YEAR FROM p."postedAt") = {ano}
                         AND EXTRACT(MONTH FROM p."postedAt") = {mes}
+                        AND DATE(p."postedAt") <= '{data_referencia}'
 
                       UNION ALL
 
                       SELECT
                           'SBI' as shopping,
                           SUM(COALESCE(i.likes, 0) + COALESCE(i.comments, 0) +
-                              COALESCE(i.shares, 0) + COALESCE(i.saved, 0)) as engajamento_total_mes
+                              COALESCE(i.shares, 0) + COALESCE(i.saved, 0)) as engajamento_total_acumulado,
+                          COUNT(DISTINCT DATE(p."postedAt")) as dias_com_posts
                       FROM "instagram-data-fetch-sbi"."Post" p
                       LEFT JOIN "instagram-data-fetch-sbi"."PostInsight" i ON p.id = i."postId"
                       WHERE EXTRACT(YEAR FROM p."postedAt") = {ano}
                         AND EXTRACT(MONTH FROM p."postedAt") = {mes}
+                        AND DATE(p."postedAt") <= '{data_referencia}'
+                  ),
+                  month_to_date_reach AS (
+                      -- Alcance acumulado do dia 1 do mês até a data selecionada
+                      SELECT
+                          'SCIB' as shopping,
+                          SUM(COALESCE(i.reach, 0)) as alcance_total_acumulado,
+                          COUNT(DISTINCT DATE(p."postedAt")) as dias_com_posts
+                      FROM "instagram-data-fetch-scib"."Post" p
+                      LEFT JOIN "instagram-data-fetch-scib"."PostInsight" i ON p.id = i."postId"
+                      WHERE EXTRACT(YEAR FROM p."postedAt") = {ano}
+                        AND EXTRACT(MONTH FROM p."postedAt") = {mes}
+                        AND DATE(p."postedAt") <= '{data_referencia}'
+
+                      UNION ALL
+
+                      SELECT
+                          'SBGP' as shopping,
+                          SUM(COALESCE(i.reach, 0)) as alcance_total_acumulado,
+                          COUNT(DISTINCT DATE(p."postedAt")) as dias_com_posts
+                      FROM "instagram-data-fetch-sbgp"."Post" p
+                      LEFT JOIN "instagram-data-fetch-sbgp"."PostInsight" i ON p.id = i."postId"
+                      WHERE EXTRACT(YEAR FROM p."postedAt") = {ano}
+                        AND EXTRACT(MONTH FROM p."postedAt") = {mes}
+                        AND DATE(p."postedAt") <= '{data_referencia}'
+
+                      UNION ALL
+
+                      SELECT
+                          'SBI' as shopping,
+                          SUM(COALESCE(i.reach, 0)) as alcance_total_acumulado,
+                          COUNT(DISTINCT DATE(p."postedAt")) as dias_com_posts
+                      FROM "instagram-data-fetch-sbi"."Post" p
+                      LEFT JOIN "instagram-data-fetch-sbi"."PostInsight" i ON p.id = i."postId"
+                      WHERE EXTRACT(YEAR FROM p."postedAt") = {ano}
+                        AND EXTRACT(MONTH FROM p."postedAt") = {mes}
+                        AND DATE(p."postedAt") <= '{data_referencia}'
                   )
                   SELECT
                       d.shopping,
@@ -735,9 +762,22 @@ class InstagramKPIsView(View):
                       d.total_salvos,
                       (d.total_likes + d.total_comentarios + d.total_compartilhamentos + d.total_salvos) as engajamento_total,
                       d.total_posts,
-                      COALESCE(m.engajamento_total_mes / {dias_no_mes}, 0) as engajamento_medio_mes
+                      COALESCE(m.engajamento_total_acumulado, 0) as engajamento_total_mes,
+                      COALESCE(m.dias_com_posts, 0) as dias_disponiveis,
+                      CASE
+                        WHEN COALESCE(m.dias_com_posts, 0) > 0
+                        THEN COALESCE(m.engajamento_total_acumulado / m.dias_com_posts, 0)
+                        ELSE 0
+                      END as engajamento_medio_dia,
+                      COALESCE(r.alcance_total_acumulado, 0) as alcance_total_mes,
+                      CASE
+                        WHEN COALESCE(r.dias_com_posts, 0) > 0
+                        THEN COALESCE(r.alcance_total_acumulado / r.dias_com_posts, 0)
+                        ELSE 0
+                      END as alcance_medio_dia
                   FROM daily_data d
-                  LEFT JOIN monthly_engagement m ON d.shopping = m.shopping
+                  LEFT JOIN month_to_date_engagement m ON d.shopping = m.shopping
+                  LEFT JOIN month_to_date_reach r ON d.shopping = r.shopping
                   {f"WHERE d.shopping = '{shopping}'" if shopping else ""}
                   ORDER BY d.data DESC, d.shopping
             """
@@ -751,9 +791,6 @@ class InstagramKPIsView(View):
             }, safe=False)
 
         except Exception as e:
-            print(f"[Instagram] Erro ao buscar KPIs: {str(e)}")
-            print(traceback.format_exc())
-
             return JsonResponse({
                 'error': f'Erro ao buscar KPIs do Instagram: {str(e)}',
                 'error_type': type(e).__name__
@@ -785,8 +822,16 @@ class InstagramTopPostsView(View):
             shopping = request.GET.get('shopping')
             limit = request.GET.get('limit', '3')
 
-            # Constrói WHERE clause para data
-            date_filter = f"AND DATE(p.\"postedAt\") = '{data_referencia}'" if data_referencia else ""
+            # Constrói WHERE clause para data do mês
+            # Se data_referencia for fornecida, busca posts do mês inteiro
+            if data_referencia:
+                from datetime import datetime
+                data_obj = datetime.strptime(data_referencia, '%Y-%m-%d')
+                ano = data_obj.year
+                mes = data_obj.month
+                date_filter = f"AND EXTRACT(YEAR FROM p.\"postedAt\") = {ano} AND EXTRACT(MONTH FROM p.\"postedAt\") = {mes}"
+            else:
+                date_filter = ""
 
             query = f"""
                 WITH all_data AS (
@@ -859,9 +904,6 @@ class InstagramTopPostsView(View):
             }, safe=False)
 
         except Exception as e:
-            print(f"[Instagram] Erro ao buscar top posts: {str(e)}")
-            print(traceback.format_exc())
-
             return JsonResponse({
                 'error': f'Erro ao buscar top posts do Instagram: {str(e)}',
                 'error_type': type(e).__name__

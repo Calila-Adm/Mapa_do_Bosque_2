@@ -268,9 +268,11 @@ export function isWBRError(data: any): data is { error: string; status: string }
 export interface InstagramKPIs {
   seguidores: Array<{
     shopping: string;
-    DATA: string;
-    METRICA: string;
-    value: any;
+    data?: string; // minúsculas (formato real do backend)
+    DATA?: string; // maiúsculas (compatibilidade)
+    metrica?: string; // minúsculas (formato real do backend)
+    METRICA?: string; // maiúsculas (compatibilidade)
+    value: any; // Pode ser número direto ou objeto JSON com dados demográficos
   }>;
   engagement: Array<{
     shopping: string;
@@ -283,7 +285,11 @@ export interface InstagramKPIs {
     total_salvos: number;
     engajamento_total: number;
     total_posts: number;
-    engajamento_medio_mes: number;
+    engajamento_total_mes: number;
+    engajamento_medio_dia: number;
+    dias_disponiveis: number;
+    alcance_total_mes: number;
+    alcance_medio_dia: number;
   }>;
 }
 

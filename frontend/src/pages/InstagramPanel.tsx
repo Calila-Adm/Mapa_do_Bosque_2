@@ -83,12 +83,17 @@ export function InstagramPanel() {
 
   // Busca Top Posts quando os filtros mudam
   useEffect(() => {
+    // Só busca se a data estiver definida
+    if (!filters.date) {
+      return;
+    }
+
     const fetchTopPosts = async () => {
       setLoadingPosts(true);
       setPostsError(null);
       try {
         const data = await instagramApi.getTopPosts({
-          data_referencia: filters.date || undefined,
+          data_referencia: filters.date,
           shopping: filters.shopping || undefined,
           limit: 3,
         });
@@ -108,43 +113,55 @@ export function InstagramPanel() {
     if (!kpis || !kpis.engagement || kpis.engagement.length === 0) {
       return {
         seguidores: 0,
-        engajamentoMedio: 0,
-        alcance: 0,
-        taxaSalvamento: 0,
+        engajamentoTotalMes: 0,
+        engajamentoMedioDia: 0,
+        alcanceTotalMes: 0,
+        alcanceMedioDia: 0,
       };
     }
 
     const engagement = kpis.engagement[0];
-    const totalEngajamento = engagement.engajamento_total;
 
-    // Usa o engajamento médio mensal calculado pelo backend
-    const engajamentoMedio = engagement.engajamento_medio_mes || 0;
-
-    // Calcula a taxa de salvamento (salvos / engajamento total * 100)
-    const taxaSalvamento = totalEngajamento > 0
-      ? (engagement.total_salvos / totalEngajamento * 100)
-      : 0;
+    // Backend agora retorna:
+    // - engajamento_total_mes: soma acumulada do dia 1 até a data selecionada
+    // - engajamento_medio_dia: engajamento_total_mes / dias_disponiveis
+    // - alcance_total_mes: soma acumulada de alcance do dia 1 até a data selecionada
+    // - alcance_medio_dia: alcance_total_mes / dias_disponiveis
+    const engajamentoTotalMes = engagement.engajamento_total_mes || 0;
+    const engajamentoMedioDia = engagement.engajamento_medio_dia || 0;
+    const alcanceTotalMes = engagement.alcance_total_mes || 0;
+    const alcanceMedioDia = engagement.alcance_medio_dia || 0;
 
     // Busca o número de seguidores (follower_demographics)
-    const seguidoresData = kpis.seguidores.find(s => s.METRICA === 'follower_demographics');
-    const seguidores = seguidoresData?.value || 0;
+    // Esta métrica retorna a quantidade TOTAL de seguidores da conta naquele dia específico
+    // Não é uma soma, é o valor absoluto de seguidores no dia da data_referencia
+    // IMPORTANTE: O backend retorna os campos em minúsculas (metrica, não METRICA)
+    const seguidoresData = kpis.seguidores?.find(s =>
+      (s as any).metrica === 'follower_demographics' || s.METRICA === 'follower_demographics'
+    );
 
-    // Se value for um objeto (demographics breakdown), soma todos os valores
+    // O value já contém o total de seguidores naquele dia
     let totalSeguidores: number = 0;
-    if (typeof seguidores === 'object' && seguidores !== null) {
-      totalSeguidores = Object.values(seguidores).reduce((acc: number, val: any) => {
-        const numVal = typeof val === 'number' ? val : 0;
-        return acc + numVal;
-      }, 0);
-    } else if (typeof seguidores === 'number') {
-      totalSeguidores = seguidores;
+    if (seguidoresData?.value) {
+      if (typeof seguidoresData.value === 'number') {
+        // Valor direto
+        totalSeguidores = seguidoresData.value;
+      } else if (typeof seguidoresData.value === 'object' && seguidoresData.value !== null) {
+        // Se for objeto (dados demográficos), soma os valores para obter o total
+        // Ex: { "18-24": 1000, "25-34": 1500, ... } = 2500 seguidores total
+        totalSeguidores = Object.values(seguidoresData.value).reduce((acc: number, val: any) => {
+          const numVal = typeof val === 'number' ? val : 0;
+          return acc + numVal;
+        }, 0);
+      }
     }
 
     return {
       seguidores: totalSeguidores,
-      engajamentoMedio: engajamentoMedio,
-      alcance: engagement.total_alcance,
-      taxaSalvamento: taxaSalvamento,
+      engajamentoTotalMes: engajamentoTotalMes,
+      engajamentoMedioDia: engajamentoMedioDia,
+      alcanceTotalMes: alcanceTotalMes,
+      alcanceMedioDia: alcanceMedioDia,
     };
   }, [kpis]);
 
@@ -242,7 +259,7 @@ export function InstagramPanel() {
           <Card className="transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
             <CardContent className="p-6">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                Engajamento Médio
+                Engajamento Total do Mês
               </p>
               {loadingKpis ? (
                 <div className="animate-pulse">
@@ -251,16 +268,21 @@ export function InstagramPanel() {
               ) : kpisError ? (
                 <p className="text-sm text-red-500">{kpisError}</p>
               ) : (
-                <p className="text-3xl font-bold text-foreground mb-2">
-                  {formattedKPIs.engajamentoMedio.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                </p>
+                <>
+                  <p className="text-3xl font-bold text-foreground mb-1">
+                    {formattedKPIs.engajamentoTotalMes.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Média/dia: {formattedKPIs.engajamentoMedioDia.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </p>
+                </>
               )}
             </CardContent>
           </Card>
           <Card className="transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
             <CardContent className="p-6">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                Alcance do Mês
+                Alcance Total do Mês
               </p>
               {loadingKpis ? (
                 <div className="animate-pulse">
@@ -269,27 +291,14 @@ export function InstagramPanel() {
               ) : kpisError ? (
                 <p className="text-sm text-red-500">{kpisError}</p>
               ) : (
-                <p className="text-3xl font-bold text-foreground mb-2">
-                  {formattedKPIs.alcance.toLocaleString()}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-          <Card className="transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
-            <CardContent className="p-6">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                Taxa de Salvamento
-              </p>
-              {loadingKpis ? (
-                <div className="animate-pulse">
-                  <div className="h-9 bg-gray-200 rounded mb-2"></div>
-                </div>
-              ) : kpisError ? (
-                <p className="text-sm text-red-500">{kpisError}</p>
-              ) : (
-                <p className="text-3xl font-bold text-foreground mb-2">
-                  {formattedKPIs.taxaSalvamento.toFixed(1)}%
-                </p>
+                <>
+                  <p className="text-3xl font-bold text-foreground mb-1">
+                    {formattedKPIs.alcanceTotalMes.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Média/dia: {formattedKPIs.alcanceMedioDia.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </p>
+                </>
               )}
             </CardContent>
           </Card>
@@ -322,7 +331,7 @@ export function InstagramPanel() {
 
         {/* Top 3 Posts Section - Pódio */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-6">Top 3 Posts com Melhor Engajamento</h2>
+          <h2 className="text-2xl font-bold mb-6">Top 3 Posts do Mês com Melhor Engajamento</h2>
 
           {loadingPosts ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
