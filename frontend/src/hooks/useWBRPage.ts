@@ -4,7 +4,7 @@
  * CARREGAMENTO SEQUENCIAL - Um gráfico por vez
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { wbrApi } from '../services/wbrApi';
 import type { PageWBRData, UserFilters } from '../services/wbrApi';
 
@@ -74,7 +74,12 @@ export function useWBRPage(pageId: string, filters?: UserFilters): UseWBRPageRes
   const [loadingGraficos, setLoadingGraficos] = useState<Record<string, boolean>>({});
   const [progress, setProgress] = useState<{ loaded: number; total: number }>({ loaded: 0, total: 0 });
 
+  // Usa ref para evitar re-criação do callback quando filtros mudam
+  const filtersRef = useRef<UserFilters | undefined>(filters);
+  filtersRef.current = filters;
+
   const loadPage = useCallback(async () => {
+    const currentFilters = filtersRef.current;
     try {
       setLoading(true);
       setError(null);
@@ -118,8 +123,7 @@ export function useWBRPage(pageId: string, filters?: UserFilters): UseWBRPageRes
         // Carrega lote em paralelo
         const batchPromises = batch.map(async (graficoId) => {
           try {
-            console.log(`[useWBRPage] Carregando gráfico: ${graficoId} com filtros:`, filters);
-            const graficoData = await wbrApi.getGrafico(graficoId, filters);
+            const graficoData = await wbrApi.getGrafico(graficoId, currentFilters);
 
             // Atualiza apenas este gráfico específico
             setData(prev => ({
@@ -160,12 +164,16 @@ export function useWBRPage(pageId: string, filters?: UserFilters): UseWBRPageRes
     } finally {
       setLoading(false);
     }
-  }, [pageId, filters]);
+  }, [pageId]); // Remove filters das dependências para evitar re-criações
 
   // Carrega dados automaticamente quando pageId ou filters mudarem
-  // Usa JSON.stringify para comparar filtros corretamente
+  // Cria uma chave estável dos filtros para evitar re-execuções desnecessárias
+  const filtersKey = filters ? JSON.stringify(filters) : '';
+
   useEffect(() => {
     if (pageId) {
+      console.log('[useWBRPage] Carregando página:', pageId, 'com filtros:', filters);
+
       // Reset do estado ao mudar de página
       setData(null);
       setError(null);
@@ -175,7 +183,7 @@ export function useWBRPage(pageId: string, filters?: UserFilters): UseWBRPageRes
       loadPage();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageId, JSON.stringify(filters)]);
+  }, [pageId, filtersKey]); // REMOVIDO loadPage das dependências
 
   return {
     data,

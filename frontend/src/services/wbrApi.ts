@@ -98,6 +98,7 @@ export const wbrApi = {
     }
 
     const url = `${API_BASE_URL}/wbr/${graficoId}/?${queryParams.toString()}`;
+    console.log(`[wbrApi.getGrafico] Chamando API para gráfico: ${graficoId}`, filters);
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -301,6 +302,7 @@ export interface InstagramTopPost {
   data: string;
   link_foto: string;
   link_insta: string;
+  tipo_midia?: 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM';
   total_likes: number;
   total_comentarios: number;
   total_compartilhamentos: number;
@@ -328,6 +330,7 @@ export const instagramApi = {
     }
 
     const url = `${API_BASE_URL}/wbr/instagram/kpis/?${queryParams.toString()}`;
+    console.log('[instagramApi.getKPIs] Chamando API de KPIs:', filters);
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -364,6 +367,7 @@ export const instagramApi = {
     }
 
     const url = `${API_BASE_URL}/wbr/instagram/top-posts/?${queryParams.toString()}`;
+    console.log('[instagramApi.getTopPosts] Chamando API de Top Posts:', filters);
     const response = await fetch(url, {
       method: 'GET',
       headers: {

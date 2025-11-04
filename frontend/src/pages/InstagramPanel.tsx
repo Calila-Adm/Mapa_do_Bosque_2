@@ -60,6 +60,7 @@ export function InstagramPanel() {
 
   // Busca KPIs do Instagram quando os filtros mudam
   useEffect(() => {
+    console.log('[InstagramPanel] useEffect KPIs executado com filtros:', filters);
     if (!filters.date) return;
 
     const fetchKPIs = async () => {
@@ -83,6 +84,7 @@ export function InstagramPanel() {
 
   // Busca Top Posts quando os filtros mudam
   useEffect(() => {
+    console.log('[InstagramPanel] useEffect TopPosts executado com filtros:', filters);
     // Só busca se a data estiver definida
     if (!filters.date) {
       return;
@@ -359,89 +361,7 @@ export function InstagramPanel() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {topPosts.map((post, index) => {
-                // Define as medalhas para cada posição
-                const medals = ['🥇', '🥈', '🥉'];
-                const medal = medals[index];
-
-                // Função para detectar se a imagem falhou ao carregar
-                const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-                  e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%23f0f0f0" width="400" height="400"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="18" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3EFoto Expirada%3C/text%3E%3C/svg%3E';
-                };
-
-                return (
-                  <Card
-                    key={index}
-                    className="group relative overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-2xl hover:-translate-y-2"
-                    onClick={() => window.open(post.link_insta, '_blank')}
-                  >
-                    {/* Medalha de Posição */}
-                    <div className="absolute top-3 right-3 z-10 bg-white/95 backdrop-blur-sm rounded-full w-12 h-12 flex items-center justify-center text-2xl shadow-lg border-2 border-primary/20">
-                      {medal}
-                    </div>
-
-                    {/* Imagem do Post */}
-                    <div className="relative aspect-square overflow-hidden bg-muted">
-                      <img
-                        src={post.link_foto || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%23f0f0f0" width="400" height="400"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="18" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3ESem Imagem%3C/text%3E%3C/svg%3E'}
-                        alt="Post do Instagram"
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                        onError={handleImageError}
-                      />
-                      {/* Overlay com Gradient */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    </div>
-
-                    {/* Informações do Post */}
-                    <CardContent className="p-4 space-y-3">
-                      {/* KPIs em uma única linha */}
-                      <div className="grid grid-cols-4 gap-2 text-center">
-                        {/* Likes */}
-                        <div className="flex flex-col items-center gap-1">
-                          <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-                          </svg>
-                          <span className="text-xs font-semibold text-foreground">{(post.total_likes || 0).toLocaleString()}</span>
-                        </div>
-
-                        {/* Comentários */}
-                        <div className="flex flex-col items-center gap-1">
-                          <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                          </svg>
-                          <span className="text-xs font-semibold text-foreground">{(post.total_comentarios || 0).toLocaleString()}</span>
-                        </div>
-
-                        {/* Compartilhamentos */}
-                        <div className="flex flex-col items-center gap-1">
-                          <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                          </svg>
-                          <span className="text-xs font-semibold text-foreground">{(post.total_compartilhamentos || 0).toLocaleString()}</span>
-                        </div>
-
-                        {/* Salvamentos */}
-                        <div className="flex flex-col items-center gap-1">
-                          <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                          </svg>
-                          <span className="text-xs font-semibold text-foreground">{(post.total_salvos || 0).toLocaleString()}</span>
-                        </div>
-                      </div>
-
-                      {/* Engajamento Total */}
-                      <div className="pt-3 border-t">
-                        <div className="text-center">
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
-                            Engajamento Total
-                          </p>
-                          <p className="text-2xl font-bold text-primary">
-                            {(post.engajamento_total || 0).toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
+                return <TopPostCard key={index} post={post} index={index} />;
               })}
             </div>
           )}
@@ -511,6 +431,123 @@ export function InstagramPanel() {
         )}
       </div>
     </div>
+  );
+}
+
+// Componente separado para cada card de Top Post
+function TopPostCard({ post, index }: { post: InstagramTopPost; index: number }) {
+  const medals = ['🥇', '🥈', '🥉'];
+  const medal = medals[index];
+  const [mediaError, setMediaError] = useState(false);
+
+  const placeholderSvg = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%23f0f0f0" width="400" height="400"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="16" font-weight="bold" x="50%25" y="45%25" text-anchor="middle"%3EMídia Expirada%3C/text%3E%3Ctext fill="%23666" font-family="sans-serif" font-size="12" x="50%25" y="55%25" text-anchor="middle"%3EClique para ver no Instagram%3C/text%3E%3C/svg%3E';
+
+  const handleMediaError = () => {
+    setMediaError(true);
+  };
+
+  return (
+    <Card
+      className="group relative overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-2xl hover:-translate-y-2"
+      onClick={() => window.open(post.link_insta, '_blank')}
+    >
+      {/* Medalha de Posição */}
+      <div className="absolute top-3 right-3 z-10 bg-white/95 backdrop-blur-sm rounded-full w-12 h-12 flex items-center justify-center text-2xl shadow-lg border-2 border-primary/20">
+        {medal}
+      </div>
+
+      {/* Imagem ou Vídeo do Post */}
+      <div className="relative aspect-square overflow-hidden bg-muted">
+        {mediaError ? (
+          <img
+            src={placeholderSvg}
+            alt="Mídia expirada"
+            className="w-full h-full object-cover"
+          />
+        ) : post.tipo_midia === 'VIDEO' ? (
+          <video
+            src={post.link_foto}
+            className="w-full h-full object-cover"
+            controls
+            playsInline
+            preload="metadata"
+            onError={handleMediaError}
+          >
+            Seu navegador não suporta vídeos.
+          </video>
+        ) : (
+          <img
+            src={post.link_foto || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%23f0f0f0" width="400" height="400"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="18" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3ESem Imagem%3C/text%3E%3C/svg%3E'}
+            alt="Post do Instagram"
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+            onError={handleMediaError}
+          />
+        )}
+        {/* Overlay com Gradient - apenas para imagens */}
+        {!mediaError && post.tipo_midia !== 'VIDEO' && (
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        )}
+        {/* Badge de tipo de mídia */}
+        {post.tipo_midia === 'VIDEO' && !mediaError && (
+          <div className="absolute top-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-xs font-semibold flex items-center gap-1">
+            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
+            </svg>
+            VÍDEO
+          </div>
+        )}
+      </div>
+
+      {/* Informações do Post */}
+      <CardContent className="p-4 space-y-3">
+        {/* KPIs em uma única linha */}
+        <div className="grid grid-cols-4 gap-2 text-center">
+          {/* Likes */}
+          <div className="flex flex-col items-center gap-1">
+            <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+            </svg>
+            <span className="text-xs font-semibold text-foreground">{(post.total_likes || 0).toLocaleString()}</span>
+          </div>
+
+          {/* Comentários */}
+          <div className="flex flex-col items-center gap-1">
+            <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            <span className="text-xs font-semibold text-foreground">{(post.total_comentarios || 0).toLocaleString()}</span>
+          </div>
+
+          {/* Compartilhamentos */}
+          <div className="flex flex-col items-center gap-1">
+            <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+            <span className="text-xs font-semibold text-foreground">{(post.total_compartilhamentos || 0).toLocaleString()}</span>
+          </div>
+
+          {/* Salvamentos */}
+          <div className="flex flex-col items-center gap-1">
+            <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+            </svg>
+            <span className="text-xs font-semibold text-foreground">{(post.total_salvos || 0).toLocaleString()}</span>
+          </div>
+        </div>
+
+        {/* Engajamento Total */}
+        <div className="pt-3 border-t">
+          <div className="text-center">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+              Engajamento Total
+            </p>
+            <p className="text-2xl font-bold text-primary">
+              {(post.engajamento_total || 0).toLocaleString()}
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
