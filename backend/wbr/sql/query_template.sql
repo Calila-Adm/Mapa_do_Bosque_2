@@ -3,15 +3,15 @@
 --   {coluna_data} -> coluna de data da tabela
 --   {coluna_valor} -> coluna numérica/métrica da tabela
 --   {tabela} -> nome da tabela
---   {filtros_dinamicos} -> cláusulas WHERE adicionais (região, status, etc)
+--   Filtros dinâmicos serão aplicados após as condições de data
 
 SELECT
     {coluna_data} as data,
     SUM({coluna_valor}) as valor
 FROM {tabela}
 WHERE 1=1
-    {filtros_dinamicos}
     AND {coluna_data} >= :data_inicio
     AND {coluna_data} <= :data_fim
+    {filtros_dinamicos}
 GROUP BY {coluna_data}
 ORDER BY {coluna_data};

@@ -2,7 +2,7 @@
 -- Placeholders serão substituídos dinamicamente pelo QueryBuilder:
 --   {coluna_data} -> coluna de data (sempre "data" para Instagram)
 --   {coluna_valor} -> coluna numérica/métrica (total_likes, total_alcance, etc)
---   {filtros_dinamicos} -> cláusulas WHERE adicionais (shopping, etc)
+--   Filtros dinâmicos (shopping, etc) serão aplicados no WHERE final
 
 WITH POSTINSIGHT AS (
     SELECT
