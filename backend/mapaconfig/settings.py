@@ -127,7 +127,7 @@ FRONTEND_DIR = os.path.join(BASE_DIR.parent, 'frontend', 'dist')
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [FRONTEND_DIR],  # Adiciona o build do React para servir o index.html
+        'DIRS': [FRONTEND_DIR] if os.path.exists(FRONTEND_DIR) else [],  # Adiciona o build do React para servir o index.html
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -202,6 +202,10 @@ STATICFILES_DIRS = [
 
 # WhiteNoise configuration for serving static files in production
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# WhiteNoise - Allow serving index.html with immutable cache
+WHITENOISE_AUTOREFRESH = DEBUG  # Auto-refresh em dev, cache em produção
+WHITENOISE_USE_FINDERS = DEBUG  # Usa staticfiles finders em dev
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
