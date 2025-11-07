@@ -15,8 +15,12 @@ __pycache__/
 
 # Environment variables
 .env
-.env.*
+.env.local
+.env.*.local
 .secrets/
+
+# Exceção: .env.production pode ser commitado (config pública, sem segredos)
+!frontend/.env.production
 
 # IDE
 .idea/
