@@ -34,33 +34,41 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # !SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-# ALLOWED_HOSTS - Aceita variável de ambiente ou usa padrões para desenvolvimento
+# ALLOWED_HOSTS - Aceita variável de ambiente E adiciona padrões
+ALLOWED_HOSTS = []
+
+# Adiciona hosts da variável de ambiente (se existir)
 allowed_hosts_env = os.getenv('ALLOWED_HOSTS', '')
 if allowed_hosts_env:
-    ALLOWED_HOSTS = allowed_hosts_env.split(',')
-else:
-    ALLOWED_HOSTS = []
+    ALLOWED_HOSTS.extend([h.strip() for h in allowed_hosts_env.split(',') if h.strip()])
 
-# Adiciona hosts padrões
-ALLOWED_HOSTS += [
+# SEMPRE adiciona hosts padrões (mesmo que venha da env)
+ALLOWED_HOSTS.extend([
     'localhost',
     '127.0.0.1',
     '.ngrok-free.app',
     '.ngrok.io',
     '.ngrok.app',
-    '.trycloudflare.com',  # Cloudflare Tunnel
-    '.onrender.com',  # Render.com
-]
+    '.trycloudflare.com',
+    '.onrender.com',
+    'mapa-do-bosque-2.onrender.com',  # Domínio específico do Render
+])
+
+# Remove duplicatas mantendo ordem
+ALLOWED_HOSTS = list(dict.fromkeys(ALLOWED_HOSTS))
 
 # *CSRF trusted origins for ngrok e cloudflare
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:5173',  # Frontend local
+    'http://localhost:8000',  # Backend local
     'http://127.0.0.1:5173',  # Frontend local
+    'http://127.0.0.1:8000',  # Backend local
     'https://*.ngrok-free.app',
     'https://*.ngrok.io',
     'https://*.ngrok.app',
     'https://*.trycloudflare.com',  # Cloudflare Tunnel
-    'https://*.onrender.com',  # Render.com
+    'https://*.onrender.com',  # Render.com (wildcard)
+    'https://mapa-do-bosque-2.onrender.com',  # Domínio específico
 ]
 
 
