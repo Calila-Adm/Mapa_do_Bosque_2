@@ -25,6 +25,30 @@ interface FilterSidebarProps {
   onToggle: () => void;
 }
 
+const STORAGE_KEY = 'wbr-filter-values';
+
+// Função para carregar filtros do localStorage
+const loadFiltersFromStorage = (): Partial<FilterValues> | null => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (error) {
+    console.error('Erro ao carregar filtros do localStorage:', error);
+  }
+  return null;
+};
+
+// Função para salvar filtros no localStorage
+const saveFiltersToStorage = (filters: FilterValues) => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(filters));
+  } catch (error) {
+    console.error('Erro ao salvar filtros no localStorage:', error);
+  }
+};
+
 export function FilterSidebar({ onFilterChange, isCollapsed, onToggle }: FilterSidebarProps) {
   const [filters, setFilters] = useState<FilterValues>({
     date: '', // Será preenchida com a última data disponível
@@ -34,6 +58,7 @@ export function FilterSidebar({ onFilterChange, isCollapsed, onToggle }: FilterS
     loja: '',
   });
   const [defaultDate, setDefaultDate] = useState<string>('');
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Busca a última data disponível ao montar o componente
   useEffect(() => {
@@ -44,8 +69,26 @@ export function FilterSidebar({ onFilterChange, isCollapsed, onToggle }: FilterS
           const latestDate = dates[0]; // Primeira data (mais recente)
           setDefaultDate(latestDate);
 
-          const newFilters = { ...filters, date: latestDate };
+          // Tenta carregar filtros salvos do localStorage
+          const storedFilters = loadFiltersFromStorage();
+
+          let newFilters: FilterValues;
+          if (storedFilters) {
+            // Se há filtros salvos, usa eles mas garante que tenha uma data
+            newFilters = {
+              date: storedFilters.date || latestDate,
+              shopping: storedFilters.shopping || '',
+              ramo: storedFilters.ramo || '',
+              categoria: storedFilters.categoria || '',
+              loja: storedFilters.loja || '',
+            };
+          } else {
+            // Se não há filtros salvos, usa apenas a data padrão
+            newFilters = { ...filters, date: latestDate };
+          }
+
           setFilters(newFilters);
+          setIsInitialized(true);
           // Notifica imediatamente com a data carregada
           onFilterChange?.(newFilters);
         }
@@ -74,6 +117,10 @@ export function FilterSidebar({ onFilterChange, isCollapsed, onToggle }: FilterS
     }
 
     setFilters(newFilters);
+    // Salva os filtros no localStorage após qualquer mudança
+    if (isInitialized) {
+      saveFiltersToStorage(newFilters);
+    }
     onFilterChange?.(newFilters);
   };
 
@@ -108,6 +155,8 @@ export function FilterSidebar({ onFilterChange, isCollapsed, onToggle }: FilterS
       loja: '',
     };
     setFilters(clearedFilters);
+    // Salva os filtros limpos no localStorage
+    saveFiltersToStorage(clearedFilters);
     onFilterChange?.(clearedFilters);
   };
 

@@ -52,8 +52,15 @@ class InstagramQueryBuilder(QueryBuilder):
         query = self.template
 
         # Substitui placeholders específicos do Instagram
-        coluna_data = config.get('coluna_data', 'data')
-        coluna_valor = config.get('coluna_valor')
+        # Suporta dois formatos de config:
+        # 1. Formato novo: config['colunas']['data'] e config['colunas']['valor']
+        # 2. Formato antigo: config['coluna_data'] e config['coluna_valor']
+        colunas = config.get('colunas', {})
+        coluna_data = colunas.get('data') or config.get('coluna_data', 'data')
+        coluna_valor = colunas.get('valor') or config.get('coluna_valor')
+
+        if not coluna_valor:
+            raise ValueError(f"Configuração inválida: 'colunas.valor' ou 'coluna_valor' não encontrado no config do gráfico {config.get('grafico_id')}")
 
         query = query.replace('{coluna_data}', self._sanitize_identifier(coluna_data))
         query = query.replace('{coluna_valor}', self._sanitize_identifier(coluna_valor))

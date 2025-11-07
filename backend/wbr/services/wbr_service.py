@@ -10,6 +10,7 @@ import random
 from wbr.services.config_loader import ConfigLoader
 from wbr.services.query_builder import QueryBuilder
 from wbr.services.instagram_query_builder import InstagramQueryBuilder
+from wbr.services.rgm_cto_percentual_query_builder import RgmCtoPercentualQueryBuilder
 from wbr.database.interface import DatabaseInterface
 from wbr.services.data_processor import DataProcessor
 from wbr.cache.interface import CacheInterface
@@ -110,33 +111,16 @@ class WBRService:
         cached = self.cache.get(cache_key)
 
         if cached:
-            self.logger.info("Cache hit", extra={
-                'grafico_id': grafico_id,
-                'cache_key': cache_key
-            })
             return cached
-
-        self.logger.info("Gerando dados WBR", extra={'grafico_id': grafico_id})
 
         try:
             # 2. Carrega e valida configuração
             config = self.config_loader.load(grafico_id)
             self.config_loader.validate(config)
 
-            # Log diferenciado para Instagram vs padrão
-            if config.get('use_instagram_template', False):
-                self.logger.debug("Configuração carregada (Instagram)", extra={
-                    'grafico_id': grafico_id,
-                    'coluna_data': config['coluna_data'],
-                    'coluna_valor': config['coluna_valor']
-                })
-            else:
-                self.logger.debug("Configuração carregada", extra={
-                    'grafico_id': grafico_id,
-                    'tabela': config['tabela'],
-                    'agrupamento': config['agrupamento']
-                })
-
+            # Validação de colunas (apenas para gráficos padrão)
+            # Pula validação para templates customizados (Instagram, CTO Percentual, etc)
+            if not config.get('use_instagram_template', False) and not config.get('use_cto_percentual_template', False):
                 # 3. Valida se colunas existem no banco (apenas para gráficos padrão)
                 colunas_necessarias = [
                     config['colunas']['data'],
@@ -147,44 +131,32 @@ class WBRService:
             # 4. Calcula períodos baseado na data de referência
             cy_inicio, cy_fim, py_inicio, py_fim = self._calculate_periods(data_referencia)
 
-            self.logger.debug("Períodos calculados", extra={
-                'grafico_id': grafico_id,
-                'cy': f"{cy_inicio} a {cy_fim}",
-                'py': f"{py_inicio} a {py_fim}"
-            })
-
             # 5. Monta queries com filtros do usuário
-            # Se o gráfico usa template do Instagram, cria InstagramQueryBuilder
+            # Detecta qual QueryBuilder usar baseado no tipo de gráfico
             if config.get('use_instagram_template', False):
+                # Gráficos do Instagram
                 instagram_builder = InstagramQueryBuilder()
                 query_cy = instagram_builder.build(config, cy_inicio, cy_fim, user_filters)
                 query_py = instagram_builder.build(config, py_inicio, py_fim, user_filters)
+            elif config.get('use_cto_percentual_template', False):
+                # Gráfico de CTO Percentual (RGM)
+                cto_percentual_builder = RgmCtoPercentualQueryBuilder()
+                query_cy = cto_percentual_builder.build(config, cy_inicio, cy_fim, user_filters)
+                query_py = cto_percentual_builder.build(config, py_inicio, py_fim, user_filters)
             else:
+                # Gráficos padrão
                 query_cy = self.query_builder.build(config, cy_inicio, cy_fim, user_filters)
                 query_py = self.query_builder.build(config, py_inicio, py_fim, user_filters)
 
-            # Debug: Log da query gerada
-            print(f"[WBRService] Query CY gerada:")
-            print(query_cy)
-            print(f"[WBRService] Params: data_inicio={cy_inicio}, data_fim={cy_fim}")
-
             # 6. Executa queries
-            self.logger.debug("Executando query CY", extra={'grafico_id': grafico_id})
             dados_cy = self.db_executor.execute(query_cy, {
                 'data_inicio': cy_inicio,
                 'data_fim': cy_fim
             })
 
-            self.logger.debug("Executando query PY", extra={'grafico_id': grafico_id})
             dados_py = self.db_executor.execute(query_py, {
                 'data_inicio': py_inicio,
                 'data_fim': py_fim
-            })
-
-            self.logger.debug("Queries executadas", extra={
-                'grafico_id': grafico_id,
-                'rows_cy': len(dados_cy),
-                'rows_py': len(dados_py)
             })
 
             # 7. Transforma dados para formato WBR
@@ -209,17 +181,13 @@ class WBRService:
                 usar_semana_movel=True  # Sempre True para todos os gráficos
             )
 
+            # Adiciona metadados do gráfico na resposta
+            resultado['titulo'] = config.get('titulo', grafico_id)
+            resultado['unidade'] = config.get('unidade', '')
+            resultado['is_rgm'] = config.get('is_rgm', False)
+
             # 8. Salva no cache (TTL: 1 hora = 3600 segundos)
             self.cache.set(cache_key, resultado, ttl=3600)
-
-            duration = (datetime.now() - start_time).total_seconds()
-            self.logger.info("WBR gerado com sucesso", extra={
-                'grafico_id': grafico_id,
-                'duration_seconds': round(duration, 3),
-                'rows_cy': len(dados_cy),
-                'rows_py': len(dados_py),
-                'cache_key': cache_key
-            })
 
             return resultado
 
@@ -228,11 +196,6 @@ class WBRService:
             raise
         except Exception as e:
             # Captura qualquer outra exceção
-            self.logger.error("Erro inesperado ao gerar WBR", extra={
-                'grafico_id': grafico_id,
-                'error': str(e),
-                'error_type': type(e).__name__
-            }, exc_info=True)
             raise
 
     def _calculate_periods(self, data_referencia: str) -> tuple:

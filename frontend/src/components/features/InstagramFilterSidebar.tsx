@@ -18,18 +18,19 @@ interface InstagramFilterSidebarProps {
 }
 
 export function InstagramFilterSidebar({ onFilterChange, isCollapsed, onToggle }: InstagramFilterSidebarProps) {
-  // Função para obter a data de hoje no formato YYYY-MM-DD
+  // Função para obter a data de ontem no formato YYYY-MM-DD
   const getTodayDate = () => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1); // Subtrai 1 dia
+    const year = yesterday.getFullYear();
+    const month = String(yesterday.getMonth() + 1).padStart(2, '0');
+    const day = String(yesterday.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
 
   // Define filtros iniciais
   const initialFilters: InstagramFilterValues = {
-    date: getTodayDate(), // Data de hoje como padrão
+    date: getTodayDate(), // Data de ontem como padrão
     shopping: 'SCIB', // SCIB como padrão
   };
 
@@ -43,14 +44,14 @@ export function InstagramFilterSidebar({ onFilterChange, isCollapsed, onToggle }
 
   const handleClearFilters = () => {
     const clearedFilters: InstagramFilterValues = {
-      date: getTodayDate(), // Ao limpar, volta para data de hoje
+      date: getTodayDate(), // Ao limpar, volta para data de ontem
       shopping: 'SCIB', // Ao limpar, volta para SCIB
     };
     setFilters(clearedFilters);
     onFilterChange?.(clearedFilters);
   };
 
-  // Notifica o pai sobre os filtros iniciais (com data de hoje) quando o componente monta
+  // Notifica o pai sobre os filtros iniciais (com data de ontem) quando o componente monta
   useEffect(() => {
     onFilterChange?.(initialFilters);
     // eslint-disable-next-line react-hooks/exhaustive-deps

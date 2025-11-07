@@ -9,7 +9,7 @@
  */
 export const formatarValor = (
   valor: number | null | undefined,
-  tipo: 'numero' | 'percentual' = 'numero'
+  tipo: 'numero' | 'percentual' | 'percentual-yoy' = 'numero'
 ): string => {
   if (valor === null || valor === undefined || isNaN(valor)) {
     return '';
@@ -17,16 +17,20 @@ export const formatarValor = (
 
   if (tipo === 'numero') {
     if (valor >= 1_000_000_000) {
-      return `${(valor / 1_000_000_000).toFixed(1)}B`;
+      return `${(valor / 1_000_000_000).toFixed(1).replace('.', ',')}B`;
     } else if (valor >= 1_000_000) {
-      return `${(valor / 1_000_000).toFixed(1)}M`;
+      return `${(valor / 1_000_000).toFixed(1).replace('.', ',')}M`;
     } else if (valor >= 1_000) {
-      return `${(valor / 1_000).toFixed(1)}k`;
+      return `${(valor / 1_000).toFixed(1).replace('.', ',')}k`;
     } else {
       return valor.toFixed(0);
     }
   } else if (tipo === 'percentual') {
-    return `${valor > 0 ? '+' : ''}${valor.toFixed(1)}%`;
+    // Para valores absolutos de percentual (sem sinal) - formato brasileiro
+    return `${valor.toFixed(1).replace('.', ',')}%`;
+  } else if (tipo === 'percentual-yoy') {
+    // Para variações YoY (com sinal + ou -) - formato brasileiro
+    return `${valor > 0 ? '+' : ''}${valor.toFixed(1).replace('.', ',')}%`;
   }
 
   return String(valor);

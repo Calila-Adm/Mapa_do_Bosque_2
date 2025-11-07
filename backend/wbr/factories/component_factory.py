@@ -54,10 +54,9 @@ class ComponentFactory:
         redis_url = getattr(settings, 'WBR_REDIS_URL', None)
         if redis_url:
             try:
-                print("[WBR] Inicializando RedisCache...")
                 return RedisCache(redis_url)
-            except Exception as e:
-                print(f"[WBR] Warning: Falha ao conectar Redis, usando MemoryCache. Erro: {e}")
+            except Exception:
+                pass  # Fallback para MemoryCache
 
         # Verifica se cache está habilitado
         cache_enabled = getattr(settings, 'WBR_CACHE_ENABLED', True)  # True por padrão
@@ -65,11 +64,9 @@ class ComponentFactory:
         if cache_enabled:
             # Usa MemoryCache (bom para desenvolvimento)
             cache_ttl = getattr(settings, 'WBR_CACHE_TTL', 3600)  # 1 hora por padrão
-            print(f"[WBR] Inicializando MemoryCache (TTL: {cache_ttl}s)...")
             return MemoryCache(default_ttl=cache_ttl)
 
         # Cache desabilitado
-        print("[WBR] Cache desabilitado (NullCache)")
         return NullCache()
 
     @staticmethod

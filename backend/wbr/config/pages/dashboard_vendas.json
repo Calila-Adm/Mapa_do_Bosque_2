@@ -12,6 +12,7 @@
     "rgm_condominio",
     "rgm_fundo_de_promocao",
     "rgm_cto",
+    "rgm_cto_percentual",
     "rgm_energia",
     "rgm_iptu",
     "rgm_agua",

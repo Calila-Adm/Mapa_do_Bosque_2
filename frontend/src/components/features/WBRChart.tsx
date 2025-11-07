@@ -103,9 +103,17 @@ const WBRChartComponent = ({
       return;
     }
 
+    // Helper para determinar o tipo de formatação baseado na unidade
+    const getTipoFormatacao = (): 'numero' | 'percentual' | 'percentual-yoy' => {
+      return unidade === '%' ? 'percentual' : 'numero';
+    };
+    const tipoFormatacao = getTipoFormatacao();
+
     console.log('[WBRChart] Dados válidos recebidos para:', titulo, {
       semanas_cy_length: Object.keys(data.semanas_cy.metric_value || {}).length,
-      meses_cy_length: Object.keys(data.meses_cy.metric_value || {}).length
+      meses_cy_length: Object.keys(data.meses_cy.metric_value || {}).length,
+      unidade: unidade,
+      tipoFormatacao: tipoFormatacao
     });
 
     // Inicializa instância do ECharts
@@ -197,7 +205,7 @@ const WBRChartComponent = ({
           position: 'top',
           formatter: (params: any) => {
             const valor = (params.value as number[])[1];
-            return formatarValor(valor, 'numero');
+            return formatarValor(valor, tipoFormatacao);
           },
           fontSize: 15,
           color: 'black',
@@ -215,7 +223,7 @@ const WBRChartComponent = ({
                 formatter: () => {
                   const yoy = yoySemanas[i];
                   if (yoy === null) return '';
-                  return formatarValor(yoy, 'percentual');
+                  return formatarValor(yoy, 'percentual-yoy');
                 },
                 fontSize: 13,
                 color: getYoYColor(yoySemanas[i]),
@@ -283,7 +291,7 @@ const WBRChartComponent = ({
               position: 'top',
               formatter: (params: any) => {
                 const valor = (params.value as number[])[1];
-                return formatarValor(valor, 'numero');
+                return formatarValor(valor, tipoFormatacao);
               },
               fontSize: 15,
               color: 'black',
@@ -301,7 +309,7 @@ const WBRChartComponent = ({
                     formatter: () => {
                       const yoy = yoyMeses[i];
                       if (yoy === null) return '';
-                      return formatarValor(yoy, 'percentual');
+                      return formatarValor(yoy, 'percentual-yoy');
                     },
                     fontSize: 13,
                     color: getYoYColor(yoyMeses[i]),
@@ -333,7 +341,7 @@ const WBRChartComponent = ({
               position: 'top',
               formatter: (params: any) => {
                 const valor = (params.value as number[])[1];
-                return formatarValor(valor, 'numero');
+                return formatarValor(valor, tipoFormatacao);
               },
               fontSize: 15,
               color: 'black',
@@ -349,7 +357,7 @@ const WBRChartComponent = ({
                   formatter: () => {
                     const yoy = yoyMeses[mesAtual];
                     if (yoy === null) return '';
-                    return formatarValor(yoy, 'percentual');
+                    return formatarValor(yoy, 'percentual-yoy');
                   },
                   fontSize: 13,
                   color: getYoYColor(yoyMeses[mesAtual]),
@@ -376,7 +384,7 @@ const WBRChartComponent = ({
               position: 'top',
               formatter: (params: any) => {
                 const valor = (params.value as number[])[1];
-                return formatarValor(valor, 'numero');
+                return formatarValor(valor, tipoFormatacao);
               },
               fontSize: 15,
               color: 'black',
@@ -392,7 +400,7 @@ const WBRChartComponent = ({
                   formatter: () => {
                     const yoy = yoyMeses[mesAtual];
                     if (yoy === null) return '';
-                    return formatarValor(yoy, 'percentual');
+                    return formatarValor(yoy, 'percentual-yoy');
                   },
                   fontSize: 13,
                   color: getYoYColor(yoyMeses[mesAtual]),
@@ -419,7 +427,7 @@ const WBRChartComponent = ({
             position: 'top',
             formatter: (params: any) => {
               const valor = (params.value as number[])[1];
-              return formatarValor(valor, 'numero');
+              return formatarValor(valor, tipoFormatacao);
             },
             fontSize: 15,
             color: 'black',
@@ -437,7 +445,7 @@ const WBRChartComponent = ({
                   formatter: () => {
                     const yoy = yoyMeses[i];
                     if (yoy === null) return '';
-                    return formatarValor(yoy, 'percentual');
+                    return formatarValor(yoy, 'percentual-yoy');
                   },
                   fontSize: 13,
                   color: getYoYColor(yoyMeses[i]),
@@ -460,6 +468,10 @@ const WBRChartComponent = ({
       tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'cross' },
+        valueFormatter: (value: any) => {
+          const numValue = typeof value === 'number' ? value : Number(value);
+          return formatarValor(numValue, tipoFormatacao);
+        },
       },
       legend: {
         data: series.map((s) => (s as { name?: string }).name || ''),
@@ -487,7 +499,7 @@ const WBRChartComponent = ({
           max: rangeYSemanas[1],
           axisLabel: {
             show: !isRGM, // Se for RGM, não mostra o eixo Y semanal
-            formatter: (value: number) => formatarValor(value, 'numero')
+            formatter: (value: number) => formatarValor(value, tipoFormatacao)
           },
           splitLine: { lineStyle: { color: '#f0f0f0' } },
         },
@@ -499,7 +511,7 @@ const WBRChartComponent = ({
           max: rangeYMeses[1],
           axisLabel: {
             show: true, // Sempre mostra o eixo Y mensal
-            formatter: (value: number) => formatarValor(value, 'numero')
+            formatter: (value: number) => formatarValor(value, tipoFormatacao)
           },
           splitLine: { show: false },
           position: 'right',

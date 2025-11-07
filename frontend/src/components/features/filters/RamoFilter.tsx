@@ -20,15 +20,19 @@ export function RamoFilter({ value, onChange, appliedFilters }: RamoFilterProps)
       try {
         setLoading(true);
 
+        let newOptions: string[] = [];
+
         // Se há filtro de shopping, usa a API filtrada
         if (appliedFilters && appliedFilters.shopping) {
           const data = await wbrApi.getFilteredOptions(appliedFilters);
-          setOptions(data.ramos || []);
+          newOptions = data.ramos || [];
         } else {
           // Caso contrário, busca todas as opções
           const data = await wbrApi.getFilterOptions();
-          setOptions(data.ramos);
+          newOptions = data.ramos;
         }
+
+        setOptions(newOptions);
 
         setError(null);
       } catch (err) {

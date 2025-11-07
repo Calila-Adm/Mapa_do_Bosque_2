@@ -70,11 +70,6 @@ export function DateFilter({ value, onChange }: DateFilterProps) {
         max={maxDate}
         className="w-full"
       />
-      {maxDate && (
-        <p className="text-xs text-muted-foreground">
-          Última data: {new Date(maxDate + 'T00:00:00').toLocaleDateString('pt-BR')}
-        </p>
-      )}
     </div>
   );
 }

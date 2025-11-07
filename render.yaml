@@ -1,0 +1,116 @@
+# ==================================================
+# Render Blueprint - Mapa do Bosque (Deploy Unificado)
+# ==================================================
+# Este arquivo configura o deploy UNIFICADO do sistema:
+# - Um único Web Service que serve Frontend React + Backend Django
+# - Frontend e Backend rodam na MESMA PORTA
+# - Redis para cache do WBR Analytics
+# - Database: Supabase PostgreSQL (configurado via DATABASE_URL)
+# ==================================================
+
+services:
+  # ===================================
+  # WEB SERVICE UNIFICADO - Django serve Frontend + API
+  # ===================================
+  - type: web
+    name: mapa-do-bosque
+    runtime: python
+    region: oregon
+    plan: starter
+    buildCommand: |
+      # Instalar Node.js e npm para build do frontend
+      curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+      apt-get install -y nodejs
+
+      # Build do Frontend (React + Vite)
+      echo "=== Building Frontend ==="
+      cd ../frontend
+      npm install
+      npm run build
+      echo "✓ Frontend build completo em frontend/dist/"
+
+      # Setup do Backend (Django)
+      echo "=== Setting up Backend ==="
+      cd ../backend
+      pip install uv
+      uv sync
+      echo "✓ Dependências do backend instaladas"
+
+      # Collect static files (inclui assets do React)
+      echo "=== Collecting static files ==="
+      uv run python manage.py collectstatic --no-input
+      echo "✓ Static files coletados"
+
+      # Run migrations
+      echo "=== Running migrations ==="
+      uv run python manage.py migrate --no-input
+      echo "✓ Migrações aplicadas"
+
+      echo "=== Build completo! ==="
+    startCommand: uv run gunicorn mapaconfig.wsgi:application --workers 4 --timeout 30 --bind 0.0.0.0:$PORT --log-level info
+    healthCheckPath: /api/
+    rootDir: backend
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.0"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        value: ".onrender.com"
+      - key: DATABASE_URL
+        sync: false  # Configure manualmente com a URL do Supabase
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: mapa-redis
+          property: connectionString
+      # WBR Analytics Configuration
+      - key: WBR_CACHE_ENABLED
+        value: "True"
+      - key: WBR_REDIS_URL
+        fromService:
+          type: redis
+          name: mapa-redis
+          property: connectionString
+      - key: WBR_DB_POOL_SIZE
+        value: "20"
+      - key: WBR_QUERY_TIMEOUT
+        value: "30"
+      - key: WBR_CACHE_TTL
+        value: "3600"
+      - key: WBR_LOG_LEVEL
+        value: "INFO"
+      - key: WBR_LOG_FORMAT
+        value: "json"
+      # Email Configuration - PREENCHA NO DASHBOARD DO RENDER
+      - key: EMAIL_HOST
+        value: "smtp-mail.outlook.com"
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_USE_TLS
+        value: "True"
+      - key: EMAIL_HOST_USER
+        sync: false  # Configure manualmente no dashboard
+      - key: EMAIL_HOST_PASSWORD
+        sync: false  # Configure manualmente no dashboard
+      - key: DEFAULT_FROM_EMAIL
+        value: "noreply@mapadobosque.com"
+
+  # ===================================
+  # REDIS (Cache para WBR Analytics)
+  # ===================================
+  - type: redis
+    name: mapa-redis
+    region: oregon
+    plan: starter
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []
+
+# ===================================
+# DATABASES
+# ===================================
+# Database: Supabase PostgreSQL
+# Configure a DATABASE_URL manualmente no dashboard do Render
+# Formato: postgresql://user:password@host:port/database?sslmode=require

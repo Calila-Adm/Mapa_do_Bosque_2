@@ -4,67 +4,75 @@
 --   {coluna_valor} -> coluna numérica/métrica (total_likes, total_alcance, etc)
 --   {filtros_dinamicos} -> cláusulas WHERE adicionais (shopping, etc)
 
-WITH all_data AS (
-    -- SCIB
+WITH POSTINSIGHT AS (
     SELECT
-        'SCIB' as shopping,
-        DATE(p."postedAt") as data,
-        COALESCE(SUM(i.likes), 0) as total_likes,
-        COALESCE(SUM(i.reach), 0) as total_alcance,
-        COALESCE(SUM(i.impressions), 0) as total_impressoes,
-        COALESCE(SUM(i.comments), 0) as total_comentarios,
-        COALESCE(SUM(i.shares), 0) as total_compartilhamentos,
-        COALESCE(SUM(i.saved), 0) as total_salvos,
-        (COALESCE(SUM(i.likes), 0) + COALESCE(SUM(i.comments), 0) +
-         COALESCE(SUM(i.shares), 0) + COALESCE(SUM(i.saved), 0)) as engajamento_total,
-        COUNT(DISTINCT p.id) as total_posts
-    FROM "instagram-data-fetch-scib"."Post" p
-    LEFT JOIN "instagram-data-fetch-scib"."PostInsight" i ON p.id = i."postId"
-    WHERE DATE(p."postedAt") >= :data_inicio
-      AND DATE(p."postedAt") <= :data_fim
-    GROUP BY DATE(p."postedAt")
+        I.*
+    FROM (
+        SELECT
+            'SCIB' AS SHOPPING,
+            *,
+            ROW_NUMBER() OVER(PARTITION BY "postId" ORDER BY "measuredAt" DESC) AS ORDEM
+        FROM "instagram-data-fetch-scib"."PostInsight"
+
+        UNION ALL
+
+        SELECT
+            'SBGP' AS SHOPPING,
+            *,
+            ROW_NUMBER() OVER(PARTITION BY "postId" ORDER BY "measuredAt" DESC) AS ORDEM
+        FROM "instagram-data-fetch-sbgp"."PostInsight"
+
+        UNION ALL
+
+        SELECT
+            'SBI' AS SHOPPING,
+            *,
+            ROW_NUMBER() OVER(PARTITION BY "postId" ORDER BY "measuredAt" DESC) AS ORDEM
+        FROM "instagram-data-fetch-sbi"."PostInsight"
+    ) AS I
+    WHERE I.ORDEM = 1
+),
+POST AS (
+    SELECT
+        'SCIB' AS SHOPPING,
+        "id" AS ID,
+        "postedAt" AS DATA_POST
+    FROM "instagram-data-fetch-scib"."Post"
 
     UNION ALL
 
-    -- SBGP
     SELECT
-        'SBGP' as shopping,
-        DATE(p."postedAt") as data,
-        COALESCE(SUM(i.likes), 0) as total_likes,
-        COALESCE(SUM(i.reach), 0) as total_alcance,
-        COALESCE(SUM(i.impressions), 0) as total_impressoes,
-        COALESCE(SUM(i.comments), 0) as total_comentarios,
-        COALESCE(SUM(i.shares), 0) as total_compartilhamentos,
-        COALESCE(SUM(i.saved), 0) as total_salvos,
-        (COALESCE(SUM(i.likes), 0) + COALESCE(SUM(i.comments), 0) +
-         COALESCE(SUM(i.shares), 0) + COALESCE(SUM(i.saved), 0)) as engajamento_total,
-        COUNT(DISTINCT p.id) as total_posts
-    FROM "instagram-data-fetch-sbgp"."Post" p
-    LEFT JOIN "instagram-data-fetch-sbgp"."PostInsight" i ON p.id = i."postId"
-    WHERE DATE(p."postedAt") >= :data_inicio
-      AND DATE(p."postedAt") <= :data_fim
-    GROUP BY DATE(p."postedAt")
+        'SBGP' AS SHOPPING,
+        "id" AS ID,
+        "postedAt" AS DATA_POST
+    FROM "instagram-data-fetch-sbgp"."Post"
 
     UNION ALL
 
-    -- SBI
     SELECT
-        'SBI' as shopping,
-        DATE(p."postedAt") as data,
-        COALESCE(SUM(i.likes), 0) as total_likes,
-        COALESCE(SUM(i.reach), 0) as total_alcance,
-        COALESCE(SUM(i.impressions), 0) as total_impressoes,
-        COALESCE(SUM(i.comments), 0) as total_comentarios,
-        COALESCE(SUM(i.shares), 0) as total_compartilhamentos,
-        COALESCE(SUM(i.saved), 0) as total_salvos,
-        (COALESCE(SUM(i.likes), 0) + COALESCE(SUM(i.comments), 0) +
-         COALESCE(SUM(i.shares), 0) + COALESCE(SUM(i.saved), 0)) as engajamento_total,
-        COUNT(DISTINCT p.id) as total_posts
-    FROM "instagram-data-fetch-sbi"."Post" p
-    LEFT JOIN "instagram-data-fetch-sbi"."PostInsight" i ON p.id = i."postId"
-    WHERE DATE(p."postedAt") >= :data_inicio
-      AND DATE(p."postedAt") <= :data_fim
-    GROUP BY DATE(p."postedAt")
+        'SBI' AS SHOPPING,
+        "id" AS ID,
+        "postedAt" AS DATA_POST
+    FROM "instagram-data-fetch-sbi"."Post"
+),
+all_data AS (
+    SELECT
+        P.SHOPPING as shopping,
+        DATE(P.DATA_POST) as data,
+        COALESCE(SUM(I.likes), 0) as total_likes,
+        COALESCE(SUM(I.reach), 0) as total_alcance,
+        COALESCE(SUM(I.impressions), 0) as total_impressoes,
+        COALESCE(SUM(I.comments), 0) as total_comentarios,
+        COALESCE(SUM(I.shares), 0) as total_compartilhamentos,
+        COALESCE(SUM(I.saved), 0) as total_salvos,
+        (COALESCE(SUM(I.likes), 0) + COALESCE(SUM(I.comments), 0) +
+         COALESCE(SUM(I.shares), 0) + COALESCE(SUM(I.saved), 0)) as engajamento_total,
+        COUNT(DISTINCT P.ID) as total_posts
+    FROM POST AS P
+    JOIN POSTINSIGHT AS I ON CONCAT(P.SHOPPING, '-', P.ID) = CONCAT(I.SHOPPING, '-', I."postId")
+    WHERE DATE(P.DATA_POST) >= :data_inicio
+      AND DATE(P.DATA_POST) <= :data_fim
+    GROUP BY P.SHOPPING, DATE(P.DATA_POST)
 )
 SELECT
     {coluna_data} as data,

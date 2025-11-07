@@ -30,6 +30,9 @@ export interface WBRData {
   semana_parcial: boolean;
   mes_parcial_cy: boolean;
   mes_parcial_py: boolean;
+  titulo?: string;
+  unidade?: string;
+  is_rgm?: boolean;
 }
 
 /**

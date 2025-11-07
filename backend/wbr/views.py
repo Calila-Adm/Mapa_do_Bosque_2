@@ -625,131 +625,100 @@ class InstagramKPIsView(View):
             # Query para engajamento e alcance (PostInsight)
             # Busca dados do dia específico para alcance/impressões
             # E calcula engajamento total acumulado do início do mês até a data selecionada
+            # IMPORTANTE: Usa ROW_NUMBER() para pegar apenas o último insight de cada post
             engagement_query = f"""
-                WITH daily_data AS (
+                WITH POSTINSIGHT AS (
+                    SELECT I.*
+                    FROM (
+                        SELECT
+                            'SCIB' AS SHOPPING,
+                            *,
+                            ROW_NUMBER() OVER(PARTITION BY "postId" ORDER BY "measuredAt" DESC) AS ORDEM
+                        FROM "instagram-data-fetch-scib"."PostInsight"
+
+                        UNION ALL
+
+                        SELECT
+                            'SBGP' AS SHOPPING,
+                            *,
+                            ROW_NUMBER() OVER(PARTITION BY "postId" ORDER BY "measuredAt" DESC) AS ORDEM
+                        FROM "instagram-data-fetch-sbgp"."PostInsight"
+
+                        UNION ALL
+
+                        SELECT
+                            'SBI' AS SHOPPING,
+                            *,
+                            ROW_NUMBER() OVER(PARTITION BY "postId" ORDER BY "measuredAt" DESC) AS ORDEM
+                        FROM "instagram-data-fetch-sbi"."PostInsight"
+                    ) AS I
+                    WHERE I.ORDEM = 1
+                ),
+                POST AS (
+                    SELECT
+                        'SCIB' AS SHOPPING,
+                        "id" AS ID,
+                        "postedAt" AS DATA_POST
+                    FROM "instagram-data-fetch-scib"."Post"
+
+                    UNION ALL
+
+                    SELECT
+                        'SBGP' AS SHOPPING,
+                        "id" AS ID,
+                        "postedAt" AS DATA_POST
+                    FROM "instagram-data-fetch-sbgp"."Post"
+
+                    UNION ALL
+
+                    SELECT
+                        'SBI' AS SHOPPING,
+                        "id" AS ID,
+                        "postedAt" AS DATA_POST
+                    FROM "instagram-data-fetch-sbi"."Post"
+                ),
+                daily_data AS (
                       SELECT
-                          'SCIB' as shopping,
-                          DATE(p."postedAt") as data,
-                          COALESCE(SUM(i.likes), 0) as total_likes,
-                          COALESCE(SUM(i.reach),0) as total_alcance,
-                          COALESCE(SUM(i.impressions),0) as total_impressoes,
-                          COALESCE(SUM(i.comments), 0) as total_comentarios,
-                          COALESCE(SUM(i.shares), 0) as total_compartilhamentos,
-                          COALESCE(SUM(i.saved), 0) as total_salvos,
-                          COUNT(DISTINCT p.id) as total_posts
-                      FROM "instagram-data-fetch-scib"."Post" p
-                      LEFT JOIN "instagram-data-fetch-scib"."PostInsight" i ON p.id = i."postId"
-                      WHERE DATE(p."postedAt") = '{data_referencia}'
-                      GROUP BY DATE(p."postedAt")
-
-                      UNION ALL
-
-                      SELECT
-                          'SBGP' as shopping,
-                          DATE(p."postedAt") as data,
-                          COALESCE(SUM(i.likes), 0) as total_likes,
-                          COALESCE(SUM(i.reach),0) as total_alcance,
-                          COALESCE(SUM(i.impressions),0) as total_impressoes,
-                          COALESCE(SUM(i.comments), 0) as total_comentarios,
-                          COALESCE(SUM(i.shares), 0) as total_compartilhamentos,
-                          COALESCE(SUM(i.saved), 0) as total_salvos,
-                          COUNT(DISTINCT p.id) as total_posts
-                      FROM "instagram-data-fetch-sbgp"."Post" p
-                      LEFT JOIN "instagram-data-fetch-sbgp"."PostInsight" i ON p.id = i."postId"
-                      WHERE DATE(p."postedAt") = '{data_referencia}'
-                      GROUP BY DATE(p."postedAt")
-
-                      UNION ALL
-
-                      SELECT
-                          'SBI' as shopping,
-                          DATE(p."postedAt") as data,
-                          COALESCE(SUM(i.likes), 0) as total_likes,
-                          COALESCE(SUM(i.reach),0) as total_alcance,
-                          COALESCE(SUM(i.impressions),0) as total_impressoes,
-                          COALESCE(SUM(i.comments), 0) as total_comentarios,
-                          COALESCE(SUM(i.shares), 0) as total_compartilhamentos,
-                          COALESCE(SUM(i.saved), 0) as total_salvos,
-                          COUNT(DISTINCT p.id) as total_posts
-                      FROM "instagram-data-fetch-sbi"."Post" p
-                      LEFT JOIN "instagram-data-fetch-sbi"."PostInsight" i ON p.id = i."postId"
-                      WHERE DATE(p."postedAt") = '{data_referencia}'
-                      GROUP BY DATE(p."postedAt")
+                          P.SHOPPING as shopping,
+                          DATE(P.DATA_POST) as data,
+                          COALESCE(SUM(I.likes), 0) as total_likes,
+                          COALESCE(SUM(I.reach), 0) as total_alcance,
+                          COALESCE(SUM(I.impressions), 0) as total_impressoes,
+                          COALESCE(SUM(I.comments), 0) as total_comentarios,
+                          COALESCE(SUM(I.shares), 0) as total_compartilhamentos,
+                          COALESCE(SUM(I.saved), 0) as total_salvos,
+                          COUNT(DISTINCT P.ID) as total_posts
+                      FROM POST AS P
+                      JOIN POSTINSIGHT AS I ON CONCAT(P.SHOPPING, '-', P.ID) = CONCAT(I.SHOPPING, '-', I."postId")
+                      WHERE DATE(P.DATA_POST) = '{data_referencia}'
+                      GROUP BY P.SHOPPING, DATE(P.DATA_POST)
                   ),
                   month_to_date_engagement AS (
                       -- Engajamento acumulado do dia 1 do mês até a data selecionada
                       SELECT
-                          'SCIB' as shopping,
-                          SUM(COALESCE(i.likes, 0) + COALESCE(i.comments, 0) +
-                              COALESCE(i.shares, 0) + COALESCE(i.saved, 0)) as engajamento_total_acumulado,
-                          COUNT(DISTINCT DATE(p."postedAt")) as dias_com_posts
-                      FROM "instagram-data-fetch-scib"."Post" p
-                      LEFT JOIN "instagram-data-fetch-scib"."PostInsight" i ON p.id = i."postId"
-                      WHERE EXTRACT(YEAR FROM p."postedAt") = {ano}
-                        AND EXTRACT(MONTH FROM p."postedAt") = {mes}
-                        AND DATE(p."postedAt") <= '{data_referencia}'
-
-                      UNION ALL
-
-                      SELECT
-                          'SBGP' as shopping,
-                          SUM(COALESCE(i.likes, 0) + COALESCE(i.comments, 0) +
-                              COALESCE(i.shares, 0) + COALESCE(i.saved, 0)) as engajamento_total_acumulado,
-                          COUNT(DISTINCT DATE(p."postedAt")) as dias_com_posts
-                      FROM "instagram-data-fetch-sbgp"."Post" p
-                      LEFT JOIN "instagram-data-fetch-sbgp"."PostInsight" i ON p.id = i."postId"
-                      WHERE EXTRACT(YEAR FROM p."postedAt") = {ano}
-                        AND EXTRACT(MONTH FROM p."postedAt") = {mes}
-                        AND DATE(p."postedAt") <= '{data_referencia}'
-
-                      UNION ALL
-
-                      SELECT
-                          'SBI' as shopping,
-                          SUM(COALESCE(i.likes, 0) + COALESCE(i.comments, 0) +
-                              COALESCE(i.shares, 0) + COALESCE(i.saved, 0)) as engajamento_total_acumulado,
-                          COUNT(DISTINCT DATE(p."postedAt")) as dias_com_posts
-                      FROM "instagram-data-fetch-sbi"."Post" p
-                      LEFT JOIN "instagram-data-fetch-sbi"."PostInsight" i ON p.id = i."postId"
-                      WHERE EXTRACT(YEAR FROM p."postedAt") = {ano}
-                        AND EXTRACT(MONTH FROM p."postedAt") = {mes}
-                        AND DATE(p."postedAt") <= '{data_referencia}'
+                          P.SHOPPING as shopping,
+                          SUM(COALESCE(I.likes, 0) + COALESCE(I.comments, 0) +
+                              COALESCE(I.shares, 0) + COALESCE(I.saved, 0)) as engajamento_total_acumulado,
+                          COUNT(DISTINCT DATE(P.DATA_POST)) as dias_com_posts
+                      FROM POST AS P
+                      JOIN POSTINSIGHT AS I ON CONCAT(P.SHOPPING, '-', P.ID) = CONCAT(I.SHOPPING, '-', I."postId")
+                      WHERE EXTRACT(YEAR FROM P.DATA_POST) = {ano}
+                        AND EXTRACT(MONTH FROM P.DATA_POST) = {mes}
+                        AND DATE(P.DATA_POST) <= '{data_referencia}'
+                      GROUP BY P.SHOPPING
                   ),
                   month_to_date_reach AS (
                       -- Alcance acumulado do dia 1 do mês até a data selecionada
                       SELECT
-                          'SCIB' as shopping,
-                          SUM(COALESCE(i.reach, 0)) as alcance_total_acumulado,
-                          COUNT(DISTINCT DATE(p."postedAt")) as dias_com_posts
-                      FROM "instagram-data-fetch-scib"."Post" p
-                      LEFT JOIN "instagram-data-fetch-scib"."PostInsight" i ON p.id = i."postId"
-                      WHERE EXTRACT(YEAR FROM p."postedAt") = {ano}
-                        AND EXTRACT(MONTH FROM p."postedAt") = {mes}
-                        AND DATE(p."postedAt") <= '{data_referencia}'
-
-                      UNION ALL
-
-                      SELECT
-                          'SBGP' as shopping,
-                          SUM(COALESCE(i.reach, 0)) as alcance_total_acumulado,
-                          COUNT(DISTINCT DATE(p."postedAt")) as dias_com_posts
-                      FROM "instagram-data-fetch-sbgp"."Post" p
-                      LEFT JOIN "instagram-data-fetch-sbgp"."PostInsight" i ON p.id = i."postId"
-                      WHERE EXTRACT(YEAR FROM p."postedAt") = {ano}
-                        AND EXTRACT(MONTH FROM p."postedAt") = {mes}
-                        AND DATE(p."postedAt") <= '{data_referencia}'
-
-                      UNION ALL
-
-                      SELECT
-                          'SBI' as shopping,
-                          SUM(COALESCE(i.reach, 0)) as alcance_total_acumulado,
-                          COUNT(DISTINCT DATE(p."postedAt")) as dias_com_posts
-                      FROM "instagram-data-fetch-sbi"."Post" p
-                      LEFT JOIN "instagram-data-fetch-sbi"."PostInsight" i ON p.id = i."postId"
-                      WHERE EXTRACT(YEAR FROM p."postedAt") = {ano}
-                        AND EXTRACT(MONTH FROM p."postedAt") = {mes}
-                        AND DATE(p."postedAt") <= '{data_referencia}'
+                          P.SHOPPING as shopping,
+                          SUM(COALESCE(I.reach, 0)) as alcance_total_acumulado,
+                          COUNT(DISTINCT DATE(P.DATA_POST)) as dias_com_posts
+                      FROM POST AS P
+                      JOIN POSTINSIGHT AS I ON CONCAT(P.SHOPPING, '-', P.ID) = CONCAT(I.SHOPPING, '-', I."postId")
+                      WHERE EXTRACT(YEAR FROM P.DATA_POST) = {ano}
+                        AND EXTRACT(MONTH FROM P.DATA_POST) = {mes}
+                        AND DATE(P.DATA_POST) <= '{data_referencia}'
+                      GROUP BY P.SHOPPING
                   )
                   SELECT
                       d.shopping,
@@ -834,58 +803,88 @@ class InstagramTopPostsView(View):
                 date_filter = ""
 
             query = f"""
-                WITH all_data AS (
+                WITH POSTINSIGHT AS (
+                    SELECT I.*
+                    FROM (
+                        SELECT
+                            'SCIB' AS SHOPPING,
+                            *,
+                            ROW_NUMBER() OVER(PARTITION BY "postId" ORDER BY "measuredAt" DESC) AS ORDEM
+                        FROM "instagram-data-fetch-scib"."PostInsight"
+
+                        UNION ALL
+
+                        SELECT
+                            'SBGP' AS SHOPPING,
+                            *,
+                            ROW_NUMBER() OVER(PARTITION BY "postId" ORDER BY "measuredAt" DESC) AS ORDEM
+                        FROM "instagram-data-fetch-sbgp"."PostInsight"
+
+                        UNION ALL
+
+                        SELECT
+                            'SBI' AS SHOPPING,
+                            *,
+                            ROW_NUMBER() OVER(PARTITION BY "postId" ORDER BY "measuredAt" DESC) AS ORDEM
+                        FROM "instagram-data-fetch-sbi"."PostInsight"
+                    ) AS I
+                    WHERE I.ORDEM = 1
+                ),
+                POST AS (
                     SELECT
-                        'SCIB' as shopping,
-                        "mediaUrl" as link_foto,
-                        "permalink" as link_insta,
-                        DATE(p."postedAt") as data,
-                        COALESCE(SUM(i.likes), 0) as total_likes,
-                        COALESCE(SUM(i.comments), 0) as total_comentarios,
-                        COALESCE(SUM(i.shares), 0) as total_compartilhamentos,
-                        COALESCE(SUM(i.saved), 0) as total_salvos
-                    FROM "instagram-data-fetch-scib"."Post" p
-                    LEFT JOIN "instagram-data-fetch-scib"."PostInsight" i ON p.id = i."postId"
-                    WHERE 1 = 1 {date_filter}
-                    GROUP BY DATE(p."postedAt"),"mediaUrl","permalink"
+                        'SCIB' AS SHOPPING,
+                        "id" AS ID,
+                        "postedAt" AS DATA_POST,
+                        "mediaUrl" AS MEDIA_URL,
+                        "permalink" AS PERMALINK,
+                        COALESCE("mediaType"::text, 'IMAGE') AS MEDIA_TYPE
+                    FROM "instagram-data-fetch-scib"."Post"
+                    WHERE 1 = 1 {date_filter.replace('p.', '')}
 
                     UNION ALL
 
                     SELECT
-                        'SBGP' as shopping,
-                        "mediaUrl" as link_foto,
-                        "permalink" as link_insta,
-                        DATE(p."postedAt") as data,
-                        COALESCE(SUM(i.likes), 0) as total_likes,
-                        COALESCE(SUM(i.comments), 0) as total_comentarios,
-                        COALESCE(SUM(i.shares), 0) as total_compartilhamentos,
-                        COALESCE(SUM(i.saved), 0) as total_salvos
-                    FROM "instagram-data-fetch-sbgp"."Post" p
-                    LEFT JOIN "instagram-data-fetch-sbgp"."PostInsight" i ON p.id = i."postId"
-                    WHERE 1 = 1 {date_filter}
-                    GROUP BY DATE(p."postedAt"),"mediaUrl","permalink"
+                        'SBGP' AS SHOPPING,
+                        "id" AS ID,
+                        "postedAt" AS DATA_POST,
+                        "mediaUrl" AS MEDIA_URL,
+                        "permalink" AS PERMALINK,
+                        COALESCE("mediaType"::text, 'IMAGE') AS MEDIA_TYPE
+                    FROM "instagram-data-fetch-sbgp"."Post"
+                    WHERE 1 = 1 {date_filter.replace('p.', '')}
 
                     UNION ALL
 
                     SELECT
-                        'SBI' as shopping,
-                        "mediaUrl" as link_foto,
-                        "permalink" as link_insta,
-                        DATE(p."postedAt") as data,
-                        COALESCE(SUM(i.likes), 0) as total_likes,
-                        COALESCE(SUM(i.comments), 0) as total_comentarios,
-                        COALESCE(SUM(i.shares), 0) as total_compartilhamentos,
-                        COALESCE(SUM(i.saved), 0) as total_salvos
-                    FROM "instagram-data-fetch-sbi"."Post" p
-                    LEFT JOIN "instagram-data-fetch-sbi"."PostInsight" i ON p.id = i."postId"
-                    WHERE 1 = 1 {date_filter}
-                    GROUP BY DATE(p."postedAt"),"mediaUrl","permalink"
-                  )
+                        'SBI' AS SHOPPING,
+                        "id" AS ID,
+                        "postedAt" AS DATA_POST,
+                        "mediaUrl" AS MEDIA_URL,
+                        "permalink" AS PERMALINK,
+                        COALESCE("mediaType"::text, 'IMAGE') AS MEDIA_TYPE
+                    FROM "instagram-data-fetch-sbi"."Post"
+                    WHERE 1 = 1 {date_filter.replace('p.', '')}
+                ),
+                all_data AS (
+                    SELECT
+                        P.SHOPPING as shopping,
+                        P.MEDIA_URL as link_foto,
+                        P.PERMALINK as link_insta,
+                        P.MEDIA_TYPE as tipo_midia,
+                        DATE(P.DATA_POST) as data,
+                        COALESCE(I.likes, 0) as total_likes,
+                        COALESCE(I.comments, 0) as total_comentarios,
+                        COALESCE(I.shares, 0) as total_compartilhamentos,
+                        COALESCE(I.saved, 0) as total_salvos
+                    FROM POST AS P
+                    JOIN POSTINSIGHT AS I ON CONCAT(P.SHOPPING, '-', P.ID) = CONCAT(I.SHOPPING, '-', I."postId")
+                )
                 SELECT
                     shopping,
                     data,
                     link_foto,
                     link_insta,
+                    tipo_midia,
                     total_likes,
                     total_comentarios,
                     total_compartilhamentos,

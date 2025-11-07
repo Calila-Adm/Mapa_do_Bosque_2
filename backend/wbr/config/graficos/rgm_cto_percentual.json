@@ -1,0 +1,14 @@
+{
+  "grafico_id": "rgm_cto_percentual",
+  "titulo": "RGM - CTO Percentual",
+  "tabela": "\"mapa_do_bosque\".\"Rgm_cto\"",
+  "colunas": {
+    "data": "data",
+    "valor": "cto_percentual"
+  },
+  "unidade": "%",
+  "is_rgm": true,
+  "agrupamento": "mensal",
+  "use_cto_percentual_template": true,
+  "filtros": {}
+}

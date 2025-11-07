@@ -32,23 +32,35 @@ load_dotenv(dotenv_path=env_path)
 SECRET_KEY = os.getenv('SECRET_KEY')
 
 # !SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = [
+# ALLOWED_HOSTS - Aceita variável de ambiente ou usa padrões para desenvolvimento
+allowed_hosts_env = os.getenv('ALLOWED_HOSTS', '')
+if allowed_hosts_env:
+    ALLOWED_HOSTS = allowed_hosts_env.split(',')
+else:
+    ALLOWED_HOSTS = []
+
+# Adiciona hosts padrões
+ALLOWED_HOSTS += [
     'localhost',
     '127.0.0.1',
     '.ngrok-free.app',
     '.ngrok.io',
     '.ngrok.app',
     '.trycloudflare.com',  # Cloudflare Tunnel
+    '.onrender.com',  # Render.com
 ]
 
 # *CSRF trusted origins for ngrok e cloudflare
 CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:5173',  # Frontend local
+    'http://127.0.0.1:5173',  # Frontend local
     'https://*.ngrok-free.app',
     'https://*.ngrok.io',
     'https://*.ngrok.app',
     'https://*.trycloudflare.com',  # Cloudflare Tunnel
+    'https://*.onrender.com',  # Render.com
 ]
 
 
@@ -70,6 +82,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Serve arquivos estáticos em produção
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -79,14 +92,10 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# CORS_ALLOWED_ORIGINS = [
-#     "http://localhost:5173",  # Porta padrão do Vite (usado com React)
-#     "http://localhost:3000",  # Porta alternativa
-#     "http://127.0.0.1:5173",  # Localhost alternativo
-# ]
-
-# TEMPORÁRIO: Permitir todas as origens para desenvolvimento
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS Configuration
+# Nota: Quando frontend e backend estão na mesma origem (deploy unificado),
+# CORS não é necessário. Mas mantemos para desenvolvimento local separado.
+CORS_ALLOW_ALL_ORIGINS = True  # Simplificado para desenvolvimento
 
 # Configurações adicionais de CORS
 CORS_ALLOW_CREDENTIALS = True
@@ -112,10 +121,13 @@ CORS_ALLOW_HEADERS = [
 
 ROOT_URLCONF = 'mapaconfig.urls'
 
+# Caminho para o build do React (frontend/dist)
+FRONTEND_DIR = os.path.join(BASE_DIR.parent, 'frontend', 'dist')
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],  # Não usamos templates HTML (API REST apenas)
+        'DIRS': [FRONTEND_DIR],  # Adiciona o build do React para servir o index.html
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -179,7 +191,17 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# Diretórios adicionais onde o Django procura arquivos estáticos
+# Inclui os assets do build do React (JS, CSS, imagens)
+STATICFILES_DIRS = [
+    os.path.join(FRONTEND_DIR, 'assets'),  # Vite coloca JS/CSS compilados em dist/assets
+] if os.path.exists(FRONTEND_DIR) else []
+
+# WhiteNoise configuration for serving static files in production
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

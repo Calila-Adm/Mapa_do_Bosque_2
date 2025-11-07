@@ -203,10 +203,10 @@ export function OperationsPanel() {
                     <CardContent className="p-6">
                       <WBRChart
                         data={graficoData}
-                        titulo={titulo}
-                        unidade="R$" // Valor padrão, será melhorado com config do backend
+                        titulo={graficoData.titulo || titulo}
+                        unidade={graficoData.unidade || 'R$'}
                         dataReferencia={new Date()}
-                        isRGM={graficoId.includes('rgm')} // Detecta se é RGM pelo ID
+                        isRGM={graficoData.is_rgm ?? graficoId.includes('rgm')}
                       />
                     </CardContent>
                   </Card>
