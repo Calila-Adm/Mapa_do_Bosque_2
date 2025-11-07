@@ -62,10 +62,22 @@ class RgmCtoPercentualQueryBuilder(QueryBuilder):
         if not filtros_sql:
             filtros_sql = ''
         else:
-            # Adiciona prefixo CTO. nas referências de coluna "chave" para evitar ambiguidade
-            # A coluna "chave" existe tanto em CTO quanto em VB
-            filtros_sql = filtros_sql.replace(' chave ', ' CTO.chave ')
-            filtros_sql = filtros_sql.replace('AND chave', 'AND CTO.chave')
+            # Adiciona prefixo CTO. em todas as colunas para evitar ambiguidade
+            # As colunas existem tanto em CTO quanto em VB (chave, shopping, data, etc)
+            import re
+
+            # Pattern para capturar nomes de colunas após AND
+            # Exemplo: "AND shopping = 'SCIB'" -> adiciona CTO. antes de shopping
+            # Exemplo: "AND chave IN (...)" -> adiciona CTO. antes de chave
+            def add_table_prefix(match):
+                column_name = match.group(1)
+                # Se a coluna já tem um prefixo de tabela, não adiciona novamente
+                if '.' in column_name:
+                    return match.group(0)
+                return f"AND CTO.{column_name}"
+
+            # Substitui "AND <coluna>" por "AND CTO.<coluna>"
+            filtros_sql = re.sub(r'AND\s+([a-zA-Z_][a-zA-Z0-9_]*)', add_table_prefix, filtros_sql)
 
         query = query.replace('{filtros_dinamicos}', filtros_sql)
 
