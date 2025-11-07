@@ -209,11 +209,15 @@ STATICFILES_DIRS = [
 ] if os.path.exists(FRONTEND_DIR) else []
 
 # WhiteNoise configuration for serving static files in production
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# Usando CompressedStaticFilesStorage ao invés de CompressedManifestStaticFilesStorage
+# O Manifest é muito rigoroso e causa erro 500 se houver problemas com referências
+# O CompressedStaticFilesStorage comprime arquivos mas é mais tolerante
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 # WhiteNoise - Allow serving index.html with immutable cache
 WHITENOISE_AUTOREFRESH = DEBUG  # Auto-refresh em dev, cache em produção
 WHITENOISE_USE_FINDERS = DEBUG  # Usa staticfiles finders em dev
+WHITENOISE_ALLOW_ALL_ORIGINS = True  # Permite CORS para assets
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -260,3 +264,40 @@ WBR_REDIS_URL = os.getenv('WBR_REDIS_URL', None)  # Ex: redis://localhost:6379/0
 WBR_CACHE_TTL = int(os.getenv('WBR_CACHE_TTL', '3600'))  # 1 hora (3600 segundos)
 WBR_LOG_LEVEL = os.getenv('WBR_LOG_LEVEL', 'INFO')  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 WBR_LOG_FORMAT = os.getenv('WBR_LOG_FORMAT', 'json')  # json ou text
+
+# ==========================
+# LOGGING CONFIGURATION
+# ==========================
+# Adicionar logging para DEBUG=False para capturar erros
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+    },
+}
