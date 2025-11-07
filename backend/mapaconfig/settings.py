@@ -199,7 +199,9 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = '/static/'
+# IMPORTANTE: Usar /assets/ ao invés de /static/ porque o Vite gera URLs com /assets/
+# Isso garante que Django/WhiteNoise sirva os arquivos nas URLs corretas
+STATIC_URL = '/assets/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Diretórios adicionais onde o Django procura arquivos estáticos
