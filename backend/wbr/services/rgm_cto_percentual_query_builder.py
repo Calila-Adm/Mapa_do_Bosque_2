@@ -25,6 +25,65 @@ class RgmCtoPercentualQueryBuilder(QueryBuilder):
         template_path = module_dir / 'sql' / 'rgm' / 'cto_percentual_template.sql'
         super().__init__(template_path=str(template_path))
 
+    def build_filters(self, filtros: Dict[str, Any], table_alias: str = None) -> str:
+        """
+        Sobrescreve build_filters para usar TRIM(UPPER()) nas colunas de texto.
+        Adiciona prefixo de tabela quando table_alias é fornecido.
+
+        Args:
+            filtros: Dicionário de filtros
+            table_alias: Alias da tabela (ex: 'CTO', 'V')
+        """
+        if not filtros:
+            return ""
+
+        clauses = []
+        # Colunas que precisam de TRIM(UPPER()) para comparação case-insensitive
+        text_columns = ['grupo', 'categoria', 'nome_loja', 'shopping']
+
+        for coluna, valor in filtros.items():
+            # Ignora valores None/null ou strings vazias
+            if valor is None or (isinstance(valor, str) and not valor.strip()):
+                continue
+
+            # Sanitiza nome da coluna
+            coluna_safe = self._sanitize_identifier(coluna)
+
+            # Adiciona prefixo da tabela se fornecido
+            if table_alias:
+                coluna_ref = f"{table_alias}.{coluna_safe}"
+            else:
+                coluna_ref = coluna_safe
+
+            # Para colunas de texto, usa TRIM(UPPER()) na comparação
+            if coluna in text_columns:
+                if isinstance(valor, str):
+                    valor_safe = self._sanitize_string_value(valor)
+                    clauses.append(f"AND TRIM(UPPER({coluna_ref})) = '{valor_safe}'")
+                elif isinstance(valor, list):
+                    valores_safe = [self._sanitize_string_value(v) for v in valor]
+                    valores_str = "', '".join(valores_safe)
+                    clauses.append(f"AND TRIM(UPPER({coluna_ref})) IN ('{valores_str}')")
+            else:
+                # Para outras colunas, usa o comportamento padrão
+                if isinstance(valor, str):
+                    valor_safe = self._sanitize_string_value(valor)
+                    clauses.append(f"AND {coluna_ref} = '{valor_safe}'")
+                elif isinstance(valor, (int, float)):
+                    clauses.append(f"AND {coluna_ref} = {valor}")
+                elif isinstance(valor, bool):
+                    clauses.append(f"AND {coluna_ref} = {str(valor).upper()}")
+                elif isinstance(valor, list):
+                    if all(isinstance(v, str) for v in valor):
+                        valores_safe = [self._sanitize_string_value(v) for v in valor]
+                        valores_str = "', '".join(valores_safe)
+                        clauses.append(f"AND {coluna_ref} IN ('{valores_str}')")
+                    else:
+                        valores_str = ", ".join(str(v) for v in valor)
+                        clauses.append(f"AND {coluna_ref} IN ({valores_str})")
+
+        return '\n    '.join(clauses)
+
     def build(
         self,
         config: Dict[str, Any],
@@ -36,7 +95,8 @@ class RgmCtoPercentualQueryBuilder(QueryBuilder):
         Constrói query SQL para CTO Percentual substituindo placeholders.
 
         Placeholders específicos:
-          {filtros_dinamicos} -> resultado de build_filters()
+          {filtros_cto} -> filtros para CTE cto_agrupado (com prefixo CTO.)
+          {filtros_vendas} -> filtros para CTE vendas_agrupadas (com prefixo V.)
 
         Args:
             config: Dicionário de configuração do gráfico
@@ -54,31 +114,19 @@ class RgmCtoPercentualQueryBuilder(QueryBuilder):
         if user_filters:
             combined_filters.update(user_filters)
 
-        # Constrói filtros dinâmicos
-        # Para CTO Percentual, os filtros são aplicados no WHERE do CTE
-        filtros_sql = self.build_filters(combined_filters)
+        # Constrói filtros dinâmicos com prefixo de tabela
+        # Para CTO Percentual, os filtros são aplicados nas duas CTEs com aliases diferentes
+        filtros_cto = self.build_filters(combined_filters, table_alias='CTO')
+        filtros_vendas = self.build_filters(combined_filters, table_alias='V')
 
         # Se não houver filtros, substitui por string vazia
-        if not filtros_sql:
-            filtros_sql = ''
-        else:
-            # Adiciona prefixo CTO. em todas as colunas para evitar ambiguidade
-            # As colunas existem tanto em CTO quanto em VB (chave, shopping, data, etc)
-            import re
+        if not filtros_cto:
+            filtros_cto = ''
+        if not filtros_vendas:
+            filtros_vendas = ''
 
-            # Pattern para capturar nomes de colunas após AND
-            # Exemplo: "AND shopping = 'SCIB'" -> adiciona CTO. antes de shopping
-            # Exemplo: "AND chave IN (...)" -> adiciona CTO. antes de chave
-            def add_table_prefix(match):
-                column_name = match.group(1)
-                # Se a coluna já tem um prefixo de tabela, não adiciona novamente
-                if '.' in column_name:
-                    return match.group(0)
-                return f"AND CTO.{column_name}"
-
-            # Substitui "AND <coluna>" por "AND CTO.<coluna>"
-            filtros_sql = re.sub(r'AND\s+([a-zA-Z_][a-zA-Z0-9_]*)', add_table_prefix, filtros_sql)
-
-        query = query.replace('{filtros_dinamicos}', filtros_sql)
+        # Substitui os placeholders
+        query = query.replace('{filtros_cto}', filtros_cto)
+        query = query.replace('{filtros_vendas}', filtros_vendas)
 
         return query

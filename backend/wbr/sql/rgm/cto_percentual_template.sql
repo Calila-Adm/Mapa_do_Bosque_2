@@ -1,30 +1,34 @@
--- Template SQL para CTO Percentual com JOIN entre Rgm_cto e Rgm_valor_bruto
--- Calcula o CTO como percentual da Venda Bruta
--- Lógica: Soma total do CTO do mês / Soma total do Valor Bruto do mês * 100
--- Placeholders serão substituídos dinamicamente:
---   {coluna_data} -> coluna de data (sempre "data")
---   Filtros dinâmicos (chave, shopping, etc) serão aplicados após as condições de data
-
-WITH cto_data AS (
+WITH cto_agrupado AS (
     SELECT
-        CTO.chave,
-        CTO.data,
-        CTO.valor as cto_valor,
-        VB.valor as venda_bruta
-    FROM "mapa_do_bosque"."Rgm_cto" AS CTO
-    JOIN "mapa_do_bosque"."Rgm_valor_bruto" AS VB
-        ON CONCAT(CTO.chave, '-', CTO.data) = CONCAT(VB.chave, '-', VB.data)
+        CTO.VERSAO,
+        CTO.DATA,
+        SUM(CTO.VALOR) AS CTO
+    FROM MAPA_DO_BOSQUE."Rgm_cto" AS CTO
     WHERE 1 = 1
-      AND CTO.data >= :data_inicio
-      AND CTO.data <= :data_fim
-      {filtros_dinamicos}
+      AND CTO.DATA >= :data_inicio
+      AND CTO.DATA <= :data_fim
+      {filtros_cto}
+    GROUP BY CTO.VERSAO, CTO.DATA
+),
+vendas_agrupadas AS (
+    SELECT
+        V.VERSAO,
+        V.DATA,
+        SUM(V.VALOR) AS VENDAS
+    FROM MAPA_DO_BOSQUE."Rgm_valor_bruto" AS V
+    WHERE 1 = 1
+      AND V.DATA >= :data_inicio
+      AND V.DATA <= :data_fim
+      {filtros_vendas}
+    GROUP BY V.VERSAO, V.DATA
 )
 SELECT
-    data,
+    C.DATA as data,
     CASE
-        WHEN SUM(venda_bruta) > 0 THEN (SUM(cto_valor) / SUM(venda_bruta)) * 100
+        WHEN SUM(V.VENDAS) > 0 THEN (SUM(C.CTO) / SUM(V.VENDAS)) * 100
         ELSE 0
     END as valor
-FROM cto_data
-GROUP BY data
-ORDER BY data;
+FROM cto_agrupado AS C
+JOIN vendas_agrupadas AS V ON C.DATA = V.DATA AND C.VERSAO = V.VERSAO
+GROUP BY C.DATA
+ORDER BY C.DATA;
