@@ -42,33 +42,26 @@ allowed_hosts_env = os.getenv('ALLOWED_HOSTS', '')
 if allowed_hosts_env:
     ALLOWED_HOSTS.extend([h.strip() for h in allowed_hosts_env.split(',') if h.strip()])
 
-# SEMPRE adiciona hosts padrões (mesmo que venha da env)
+# SEMPRE adiciona hosts padrões para desenvolvimento local
 ALLOWED_HOSTS.extend([
     'localhost',
     '127.0.0.1',
-    '.ngrok-free.app',
-    '.ngrok.io',
-    '.ngrok.app',
-    '.trycloudflare.com',
-    '.onrender.com',
-    'mapa-do-bosque-2.onrender.com',  # Domínio específico do Render
 ])
 
 # Remove duplicatas mantendo ordem
 ALLOWED_HOSTS = list(dict.fromkeys(ALLOWED_HOSTS))
 
-# *CSRF trusted origins for ngrok e cloudflare
+# CSRF trusted origins - desenvolvimento local e produção
 CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:5173',  # Frontend local
-    'http://localhost:8000',  # Backend local
-    'http://127.0.0.1:5173',  # Frontend local
-    'http://127.0.0.1:8000',  # Backend local
-    'https://*.ngrok-free.app',
-    'https://*.ngrok.io',
-    'https://*.ngrok.app',
-    'https://*.trycloudflare.com',  # Cloudflare Tunnel
-    'https://*.onrender.com',  # Render.com (wildcard)
-    'https://mapa-do-bosque-2.onrender.com',  # Domínio específico
+    # Desenvolvimento local
+    'http://localhost:5173',
+    'http://localhost:8000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:8000',
+    # Produção - domínios personalizados
+    'https://mapadobosque.com',
+    'https://www.mapadobosque.com',
+    'https://mapa.dobosque.com',
 ]
 
 

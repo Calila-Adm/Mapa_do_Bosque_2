@@ -50,50 +50,19 @@ class WBRSingleView(View):
                 user_filters['shopping'] = request.GET.get('shopping')
 
             # Filtros de RGM (apenas se for gráfico RGM)
-            # Para RGM, precisamos buscar as CHAVEs correspondentes na tabela Rgm_filtros
+            # Aplica filtros diretos nas colunas GRUPO, CATEGORIA e NOME_LOJA das tabelas de dados
             if 'rgm' in grafico_id.lower():
-                db_executor = ComponentFactory.create_database_executor()
-                chaves = []
-
-                # Busca CHAVEs por Ramo (Grupo)
+                # Filtro por Ramo (coluna 'grupo' nas tabelas Rgm_cto e Rgm_valor_bruto)
                 if request.GET.get('ramo'):
-                    query = f"""
-                        SELECT DISTINCT chave
-                        FROM "mapa_do_bosque"."Rgm_filtros"
-                        WHERE grupo = '{request.GET.get('ramo')}'
-                    """
-                    result = db_executor.execute(query)
-                    chaves.extend([row['chave'] for row in result])
+                    user_filters['grupo'] = request.GET.get('ramo').upper()
 
-                # Busca CHAVEs por Categoria
+                # Filtro por Categoria (coluna 'categoria' nas tabelas)
                 if request.GET.get('categoria'):
-                    query = f"""
-                        SELECT DISTINCT chave
-                        FROM "mapa_do_bosque"."Rgm_filtros"
-                        WHERE categoria = '{request.GET.get('categoria')}'
-                    """
-                    result = db_executor.execute(query)
-                    chaves.extend([row['chave'] for row in result])
+                    user_filters['categoria'] = request.GET.get('categoria').upper()
 
-                # Busca CHAVEs por Loja (name)
+                # Filtro por Loja (coluna 'nome_loja' nas tabelas)
                 if request.GET.get('loja'):
-                    query = f"""
-                        SELECT DISTINCT chave
-                        FROM "mapa_do_bosque"."Rgm_filtros"
-                        WHERE name = '{request.GET.get('loja')}'
-                    """
-                    result = db_executor.execute(query)
-                    chaves.extend([row['chave'] for row in result])
-
-                # Se encontrou CHAVEs, aplica filtro
-                if chaves:
-                    # Remove duplicatas
-                    chaves = list(set(chaves))
-                    # Se só tem uma CHAVE, usa =, senão usa IN
-                    if len(chaves) == 1:
-                        user_filters['chave'] = chaves[0]
-                    else:
-                        user_filters['chave'] = chaves
+                    user_filters['nome_loja'] = request.GET.get('loja').upper()
 
             resultado = service.generate(
                 grafico_id,
@@ -209,51 +178,20 @@ class WBRPageView(View):
                 user_filters['shopping'] = request.GET.get('shopping')
 
             # Filtros de RGM (serão aplicados apenas em gráficos RGM)
-            # Busca CHAVEs correspondentes na tabela Rgm_filtros
+            # Aplica filtros diretos nas colunas GRUPO, CATEGORIA e NOME_LOJA
             rgm_filters = {}
             if request.GET.get('ramo') or request.GET.get('categoria') or request.GET.get('loja'):
-                db_executor = ComponentFactory.create_database_executor()
-                chaves = []
-
-                # Busca CHAVEs por Ramo (Grupo)
+                # Filtro por Ramo (coluna 'grupo')
                 if request.GET.get('ramo'):
-                    query = f"""
-                        SELECT DISTINCT chave
-                        FROM "mapa_do_bosque"."Rgm_filtros"
-                        WHERE grupo = '{request.GET.get('ramo')}'
-                    """
-                    result = db_executor.execute(query)
-                    chaves.extend([row['chave'] for row in result])
+                    rgm_filters['grupo'] = request.GET.get('ramo').upper()
 
-                # Busca CHAVEs por Categoria
+                # Filtro por Categoria
                 if request.GET.get('categoria'):
-                    query = f"""
-                        SELECT DISTINCT chave
-                        FROM "mapa_do_bosque"."Rgm_filtros"
-                        WHERE categoria = '{request.GET.get('categoria')}'
-                    """
-                    result = db_executor.execute(query)
-                    chaves.extend([row['chave'] for row in result])
+                    rgm_filters['categoria'] = request.GET.get('categoria').upper()
 
-                # Busca CHAVEs por Loja (name)
+                # Filtro por Loja (coluna 'nome_loja')
                 if request.GET.get('loja'):
-                    query = f"""
-                        SELECT DISTINCT chave
-                        FROM "mapa_do_bosque"."Rgm_filtros"
-                        WHERE name = '{request.GET.get('loja')}'
-                    """
-                    result = db_executor.execute(query)
-                    chaves.extend([row['chave'] for row in result])
-
-                # Se encontrou CHAVEs, aplica filtro
-                if chaves:
-                    # Remove duplicatas
-                    chaves = list(set(chaves))
-                    # Se só tem uma CHAVE, usa =, senão usa IN
-                    if len(chaves) == 1:
-                        rgm_filters['chave'] = chaves[0]
-                    else:
-                        rgm_filters['chave'] = chaves
+                    rgm_filters['nome_loja'] = request.GET.get('loja').upper()
 
             # Gera todos os gráficos SEQUENCIALMENTE (um por vez)
             # Evita esgotar o connection pool do Supabase
@@ -432,14 +370,16 @@ class FilteredOptionsView(View):
             ramo = request.GET.get('ramo')
             categoria = request.GET.get('categoria')
 
-            # Constrói WHERE clause dinamicamente
+            # Constrói WHERE clause dinamicamente com UPPER para padronização
             where_clauses = []
             if shopping:
                 where_clauses.append(f"sigla = '{shopping}'")
             if ramo:
-                where_clauses.append(f"grupo = '{ramo}'")
+                ramo_upper = ramo.upper()
+                where_clauses.append(f"UPPER(grupo) = '{ramo_upper}'")
             if categoria:
-                where_clauses.append(f"categoria = '{categoria}'")
+                categoria_upper = categoria.upper()
+                where_clauses.append(f"UPPER(categoria) = '{categoria_upper}'")
 
             where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
 
