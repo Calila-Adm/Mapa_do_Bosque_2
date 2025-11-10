@@ -42,10 +42,17 @@ allowed_hosts_env = os.getenv('ALLOWED_HOSTS', '')
 if allowed_hosts_env:
     ALLOWED_HOSTS.extend([h.strip() for h in allowed_hosts_env.split(',') if h.strip()])
 
-# SEMPRE adiciona hosts padrões para desenvolvimento local
+# SEMPRE adiciona hosts padrões
 ALLOWED_HOSTS.extend([
+    # Desenvolvimento local
     'localhost',
     '127.0.0.1',
+    # Desenvolvimento - Render (máquina gratuita)
+    '.onrender.com',  # Aceita qualquer subdomínio .onrender.com
+    # Produção - Domínios personalizados
+    'mapadobosque.com',
+    'www.mapadobosque.com',
+    'mapa.dobosque.com',
 ])
 
 # Remove duplicatas mantendo ordem
@@ -58,7 +65,9 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost:8000',
     'http://127.0.0.1:5173',
     'http://127.0.0.1:8000',
-    # Produção - domínios personalizados
+    # Desenvolvimento - Render
+    'https://*.onrender.com',
+    # Produção - Domínios personalizados
     'https://mapadobosque.com',
     'https://www.mapadobosque.com',
     'https://mapa.dobosque.com',
