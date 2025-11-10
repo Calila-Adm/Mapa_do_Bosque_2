@@ -136,6 +136,8 @@ class QueryBuilder:
         - Valores None/null são ignorados
         - Strings são escapadas para prevenir SQL injection
         - Cada filtro vira uma cláusula AND
+        - Colunas de texto (grupo, categoria, nome_loja, shopping) usam TRIM(UPPER())
+          para comparação case-insensitive
 
         Args:
             filtros: Dicionário {coluna: valor}
@@ -151,6 +153,8 @@ class QueryBuilder:
             return ""
 
         clauses = []
+        # Colunas que precisam de TRIM(UPPER()) para comparação case-insensitive
+        text_columns = ['grupo', 'categoria', 'nome_loja', 'shopping']
 
         for coluna, valor in filtros.items():
             # Ignora valores None/null ou strings vazias
@@ -160,24 +164,33 @@ class QueryBuilder:
             # Sanitiza nome da coluna (previne SQL injection)
             coluna_safe = self._sanitize_identifier(coluna)
 
-            # Determina tipo do valor e formata adequadamente
-            if isinstance(valor, str):
-                # Escapa aspas simples em strings
-                valor_safe = self._sanitize_string_value(valor)
-                clauses.append(f"AND {coluna_safe} = '{valor_safe}'")
-            elif isinstance(valor, (int, float)):
-                clauses.append(f"AND {coluna_safe} = {valor}")
-            elif isinstance(valor, bool):
-                clauses.append(f"AND {coluna_safe} = {str(valor).upper()}")
-            elif isinstance(valor, list):
-                # Para listas, usa IN
-                if all(isinstance(v, str) for v in valor):
+            # Para colunas de texto, usa TRIM(UPPER()) na comparação
+            if coluna in text_columns:
+                if isinstance(valor, str):
+                    valor_safe = self._sanitize_string_value(valor)
+                    clauses.append(f"AND TRIM(UPPER({coluna_safe})) = '{valor_safe}'")
+                elif isinstance(valor, list):
                     valores_safe = [self._sanitize_string_value(v) for v in valor]
                     valores_str = "', '".join(valores_safe)
-                    clauses.append(f"AND {coluna_safe} IN ('{valores_str}')")
-                else:
-                    valores_str = ", ".join(str(v) for v in valor)
-                    clauses.append(f"AND {coluna_safe} IN ({valores_str})")
+                    clauses.append(f"AND TRIM(UPPER({coluna_safe})) IN ('{valores_str}')")
+            else:
+                # Para outras colunas, usa o comportamento padrão
+                if isinstance(valor, str):
+                    valor_safe = self._sanitize_string_value(valor)
+                    clauses.append(f"AND {coluna_safe} = '{valor_safe}'")
+                elif isinstance(valor, (int, float)):
+                    clauses.append(f"AND {coluna_safe} = {valor}")
+                elif isinstance(valor, bool):
+                    clauses.append(f"AND {coluna_safe} = {str(valor).upper()}")
+                elif isinstance(valor, list):
+                    # Para listas, usa IN
+                    if all(isinstance(v, str) for v in valor):
+                        valores_safe = [self._sanitize_string_value(v) for v in valor]
+                        valores_str = "', '".join(valores_safe)
+                        clauses.append(f"AND {coluna_safe} IN ('{valores_str}')")
+                    else:
+                        valores_str = ", ".join(str(v) for v in valor)
+                        clauses.append(f"AND {coluna_safe} IN ({valores_str})")
 
         return '\n    '.join(clauses)
 
