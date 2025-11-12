@@ -1,6 +1,6 @@
 {
   "grafico_id": "rgm_valor_bruto_sss",
-  "titulo": "RGM - Valor Bruto SSS",
+  "titulo": "Valor Bruto SSS",
   "tabela": "\"mapa_do_bosque\".\"Rgm_valor_bruto_sss\"",
   "colunas": {
     "data": "data",

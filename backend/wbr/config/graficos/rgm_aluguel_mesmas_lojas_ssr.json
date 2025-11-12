@@ -1,6 +1,6 @@
 {
   "grafico_id": "rgm_aluguel_mesmas_lojas_ssr",
-  "titulo": "RGM - Aluguel Mesmas Lojas SSR",
+  "titulo": "Aluguel Mesmas Lojas SSR",
   "tabela": "\"mapa_do_bosque\".\"Rgm_aluguel_mesmas_lojas_ssr\"",
   "colunas": {
     "data": "data",

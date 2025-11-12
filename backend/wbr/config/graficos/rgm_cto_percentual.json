@@ -1,6 +1,6 @@
 {
   "grafico_id": "rgm_cto_percentual",
-  "titulo": "RGM - CTO Percentual",
+  "titulo": "CTO Percentual",
   "tabela": "\"mapa_do_bosque\".\"Rgm_cto\"",
   "colunas": {
     "data": "data",

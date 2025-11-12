@@ -1,6 +1,6 @@
 {
   "grafico_id": "rgm_multa_rescisoria",
-  "titulo": "RGM - Multa Rescisória",
+  "titulo": "Multa Rescisória",
   "tabela": "\"mapa_do_bosque\".\"Rgm_multa_rescisoria\"",
   "colunas": {
     "data": "data",

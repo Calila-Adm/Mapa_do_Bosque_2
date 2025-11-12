@@ -1,6 +1,6 @@
 {
   "grafico_id": "rgm_esgoto",
-  "titulo": "RGM - Esgoto",
+  "titulo": "Esgoto",
   "tabela": "\"mapa_do_bosque\".\"Rgm_esgoto\"",
   "colunas": {
     "data": "data",

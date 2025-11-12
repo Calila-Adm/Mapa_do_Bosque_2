@@ -1,6 +1,6 @@
 {
   "grafico_id": "rgm_valor_bruto",
-  "titulo": "RGM - Valor Bruto",
+  "titulo": "Venda Total (R$)",
   "tabela": "\"mapa_do_bosque\".\"Rgm_valor_bruto\"",
   "colunas": {
     "data": "data",

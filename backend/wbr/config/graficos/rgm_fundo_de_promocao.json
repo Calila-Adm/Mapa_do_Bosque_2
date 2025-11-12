@@ -1,6 +1,6 @@
 {
   "grafico_id": "rgm_fundo_de_promocao",
-  "titulo": "RGM - Fundo de Promoção",
+  "titulo": "Fundo de Promoção",
   "tabela": "\"mapa_do_bosque\".\"Rgm_fundo_de_promocao\"",
   "colunas": {
     "data": "data",

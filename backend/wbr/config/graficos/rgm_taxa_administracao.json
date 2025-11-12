@@ -1,6 +1,6 @@
 {
   "grafico_id": "rgm_taxa_administracao",
-  "titulo": "RGM - Taxa Administração",
+  "titulo": "Taxa Administração",
   "tabela": "\"mapa_do_bosque\".\"Rgm_taxa_administracao\"",
   "colunas": {
     "data": "data",

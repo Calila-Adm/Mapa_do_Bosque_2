@@ -1,6 +1,6 @@
 {
   "grafico_id": "rgm_agua",
-  "titulo": "RGM - Água",
+  "titulo": "Água",
   "tabela": "\"mapa_do_bosque\".\"Rgm_agua\"",
   "colunas": {
     "data": "data",

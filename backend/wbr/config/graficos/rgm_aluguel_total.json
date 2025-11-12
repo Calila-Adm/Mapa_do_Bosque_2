@@ -1,6 +1,6 @@
 {
   "grafico_id": "rgm_aluguel_total",
-  "titulo": "RGM - Aluguel Total",
+  "titulo": "Aluguel Total",
   "tabela": "\"mapa_do_bosque\".\"Rgm_aluguel_total\"",
   "colunas": {
     "data": "data",

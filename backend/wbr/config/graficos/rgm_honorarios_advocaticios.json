@@ -1,6 +1,6 @@
 {
   "grafico_id": "rgm_honorarios_advocaticios",
-  "titulo": "RGM - Honorários Advocatícios",
+  "titulo": "Honorários Advocatícios",
   "tabela": "\"mapa_do_bosque\".\"Rgm_honorarios_advocaticios\"",
   "colunas": {
     "data": "data",

@@ -1,6 +1,6 @@
 {
   "grafico_id": "rgm_reembolso_despesas",
-  "titulo": "RGM - Reembolso Despesas",
+  "titulo": "Reembolso Despesas",
   "tabela": "\"mapa_do_bosque\".\"Rgm_reembolso_despesas\"",
   "colunas": {
     "data": "data",

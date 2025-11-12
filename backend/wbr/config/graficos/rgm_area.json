@@ -1,6 +1,6 @@
 {
   "grafico_id": "rgm_area",
-  "titulo": "RGM - Área",
+  "titulo": "Área",
   "tabela": "\"mapa_do_bosque\".\"Rgm_area\"",
   "colunas": {
     "data": "data",

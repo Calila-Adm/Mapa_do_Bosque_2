@@ -1,6 +1,6 @@
 {
   "grafico_id": "rgm_iptu",
-  "titulo": "RGM - IPTU",
+  "titulo": "IPTU",
   "tabela": "\"mapa_do_bosque\".\"Rgm_iptu\"",
   "colunas": {
     "data": "data",

@@ -1,6 +1,6 @@
 {
   "grafico_id": "rgm_cto",
-  "titulo": "RGM - CTO",
+  "titulo": "CTO",
   "tabela": "\"mapa_do_bosque\".\"Rgm_cto\"",
   "colunas": {
     "data": "data",

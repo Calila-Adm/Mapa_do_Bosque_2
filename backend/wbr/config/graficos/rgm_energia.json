@@ -1,6 +1,6 @@
 {
   "grafico_id": "rgm_energia",
-  "titulo": "RGM - Energia",
+  "titulo": "Energia",
   "tabela": "\"mapa_do_bosque\".\"Rgm_energia\"",
   "colunas": {
     "data": "data",

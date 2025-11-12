@@ -1,6 +1,6 @@
 {
   "grafico_id": "rgm_aluguel_ssr_yoy",
-  "titulo": "RGM - Aluguel SSR YoY",
+  "titulo": "Aluguel SSR YoY",
   "tabela": "\"mapa_do_bosque\".\"Rgm_aluguel_ssr_yoy\"",
   "colunas": {
     "data": "data",

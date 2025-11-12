@@ -1,6 +1,6 @@
 {
   "grafico_id": "rgm_aluguel_minimo",
-  "titulo": "RGM - Aluguel Mínimo",
+  "titulo": "Aluguel Mínimo",
   "tabela": "\"mapa_do_bosque\".\"Rgm_aluguel_minimo\"",
   "colunas": {
     "data": "data",

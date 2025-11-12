@@ -1,6 +1,6 @@
 {
   "grafico_id": "rgm_custos_judiciais",
-  "titulo": "RGM - Custos Judiciais",
+  "titulo": "Custos Judiciais",
   "tabela": "\"mapa_do_bosque\".\"Rgm_custos_judiciais\"",
   "colunas": {
     "data": "data",

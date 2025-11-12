@@ -1,6 +1,6 @@
 {
   "grafico_id": "rgm_condominio",
-  "titulo": "RGM - Condomínio",
+  "titulo": "Condomínio",
   "tabela": "\"mapa_do_bosque\".\"Rgm_condominio\"",
   "colunas": {
     "data": "data",

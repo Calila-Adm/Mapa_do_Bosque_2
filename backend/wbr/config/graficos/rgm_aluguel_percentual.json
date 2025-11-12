@@ -1,6 +1,6 @@
 {
   "grafico_id": "rgm_aluguel_percentual",
-  "titulo": "RGM - Aluguel Percentual",
+  "titulo": "Aluguel Percentual",
   "tabela": "\"mapa_do_bosque\".\"Rgm_aluguel_percentual\"",
   "colunas": {
     "data": "data",

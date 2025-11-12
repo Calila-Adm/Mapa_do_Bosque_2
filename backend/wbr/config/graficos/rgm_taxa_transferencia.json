@@ -1,6 +1,6 @@
 {
   "grafico_id": "rgm_taxa_transferencia",
-  "titulo": "RGM - Taxa Transferência",
+  "titulo": "Taxa Transferência",
   "tabela": "\"mapa_do_bosque\".\"Rgm_taxa_transferencia\"",
   "colunas": {
     "data": "data",
