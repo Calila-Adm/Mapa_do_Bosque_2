@@ -39,6 +39,7 @@ class WBRSingleView(View):
         Returns:
             JsonResponse com dados WBR ou erro
         """
+
         try:
             service = ComponentFactory.create_wbr_service()
 
@@ -52,39 +53,39 @@ class WBRSingleView(View):
             # Filtros de RGM (apenas se for gráfico RGM)
             # Para RGM, precisamos buscar as CHAVEs correspondentes na tabela Rgm_filtros
             if 'rgm' in grafico_id.lower():
+                ramo = request.GET.get('ramo')
+                categoria = request.GET.get('categoria')
+                loja = request.GET.get('loja')
+
+                whereConditions = []
+
+                if ramo:
+                    whereConditions.append('grupo = :ramo')
+
+                if categoria:
+                    whereConditions.append('categoria = :categoria')
+
+                if loja:
+                    whereConditions.append('name = :loja')
+
+                query = f"""
+                    SELECT DISTINCT chave
+                    FROM "mapa_do_bosque"."Rgm_filtros"
+                """
+
+                if len(whereConditions) > 0:
+                    query += ' WHERE ' + ' AND '.join(whereConditions)
+
+                namedParams = {
+                    "ramo": ramo,
+                    "categoria": categoria,
+                    "loja": loja
+                }
                 db_executor = ComponentFactory.create_database_executor()
-                chaves = []
+                result = db_executor.execute(query, namedParams)
 
-                # Busca CHAVEs por Ramo (Grupo)
-                if request.GET.get('ramo'):
-                    query = f"""
-                        SELECT DISTINCT chave
-                        FROM "mapa_do_bosque"."Rgm_filtros"
-                        WHERE grupo = '{request.GET.get('ramo')}'
-                    """
-                    result = db_executor.execute(query)
-                    chaves.extend([row['chave'] for row in result])
-
-                # Busca CHAVEs por Categoria
-                if request.GET.get('categoria'):
-                    query = f"""
-                        SELECT DISTINCT chave
-                        FROM "mapa_do_bosque"."Rgm_filtros"
-                        WHERE categoria = '{request.GET.get('categoria')}'
-                    """
-                    result = db_executor.execute(query)
-                    chaves.extend([row['chave'] for row in result])
-
-                # Busca CHAVEs por Loja (name)
-                if request.GET.get('loja'):
-                    query = f"""
-                        SELECT DISTINCT chave
-                        FROM "mapa_do_bosque"."Rgm_filtros"
-                        WHERE name = '{request.GET.get('loja')}'
-                    """
-                    result = db_executor.execute(query)
-                    chaves.extend([row['chave'] for row in result])
-
+                chaves = [row['chave'] for row in result]
+                
                 # Se encontrou CHAVEs, aplica filtro
                 if chaves:
                     # Remove duplicatas
